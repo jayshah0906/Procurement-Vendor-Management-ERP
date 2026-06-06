@@ -16,6 +16,7 @@ import { QuotationsPage } from './pages/erp/QuotationsPage';
 import { ComparisonPage } from './pages/erp/ComparisonPage';
 import { ApprovalsPage } from './pages/erp/ApprovalsPage';
 import { PurchaseOrdersPage } from './pages/erp/PurchaseOrdersPage';
+import { InvoicesPage } from './pages/erp/InvoicesPage';
 import { ActivityLogsPage } from './pages/erp/ActivityLogsPage';
 import { ReportsPage } from './pages/erp/ReportsPage';
 
@@ -39,6 +40,7 @@ function App() {
             <Route path="compare" element={<ComparisonPage />} />
             <Route path="approvals" element={<ApprovalsPage />} />
             <Route path="orders" element={<PurchaseOrdersPage />} />
+            <Route path="invoices" element={<InvoicesPage />} />
             <Route path="logs" element={<ActivityLogsPage />} />
             <Route path="reports" element={<ReportsPage />} />
           </Route>

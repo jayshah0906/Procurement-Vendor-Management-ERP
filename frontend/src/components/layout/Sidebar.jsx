@@ -7,7 +7,8 @@ import {
   Files, 
   CheckSquareOffset, 
   ShoppingCart, 
-  Receipt, 
+  Receipt,
+  Invoice,
   ChartLineUp 
 } from '@phosphor-icons/react';
 
@@ -22,8 +23,9 @@ export const Sidebar = () => {
     { to: '/erp/quotations', label: 'Quotations', icon: <Files size={20} />, roles: ['Admin', 'Vendor', 'Procurement Officer'] },
     { to: '/erp/approvals', label: 'Approvals', icon: <CheckSquareOffset size={20} />, roles: ['Admin', 'Manager', 'Approver'] },
     { to: '/erp/orders', label: 'Purchase Orders', icon: <ShoppingCart size={20} />, roles: ['Admin', 'Manager', 'Procurement Officer'] },
-    { to: '/erp/logs', label: 'Activity Logs', icon: <Receipt size={20} />, roles: ['Admin'] },
+    { to: '/erp/invoices', label: 'Invoices', icon: <Invoice size={20} />, roles: ['Admin', 'Manager', 'Vendor'] },
     { to: '/erp/reports', label: 'Reports', icon: <ChartLineUp size={20} />, roles: ['Admin', 'Manager'] },
+    { to: '/erp/logs', label: 'Activity', icon: <Receipt size={20} />, roles: ['Admin'] },
   ];
 
   const visibleLinks = allLinks.filter(link => link.roles.includes(role));
