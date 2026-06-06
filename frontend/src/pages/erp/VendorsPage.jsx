@@ -18,6 +18,7 @@ import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { TableSkeleton } from '../../components/feedback/Skeleton';
 import { Funnel, Plus, CaretUp, CaretDown, X } from '@phosphor-icons/react';
+import { ApiErrorBanner } from '../../components/feedback/ApiErrorBanner';
 
 const vendorSchema = z.object({
   company_name: z.string().min(2, 'Company name is required'),
@@ -64,6 +65,27 @@ export const VendorsPage = () => {
     },
   });
 
+  const approveMutation = useMutation({
+    mutationFn: (id) => vendorsApi.patchVendorStatus(id, 'active'),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['vendors'] });
+    },
+  });
+
+  const rejectMutation = useMutation({
+    mutationFn: (id) => vendorsApi.patchVendorStatus(id, 'rejected'),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['vendors'] });
+    },
+  });
+
+  const blockMutation = useMutation({
+    mutationFn: (id) => vendorsApi.patchVendorStatus(id, 'blocked'),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['vendors'] });
+    },
+  });
+
   const columns = useMemo(() => [
     { header: 'Company Name', accessorKey: 'company_name' },
     { header: 'Category', accessorFn: (row) => row.category?.name ?? row.category ?? '—' },
@@ -79,17 +101,63 @@ export const VendorsPage = () => {
     },
     {
       id: 'actions',
-      header: '',
-      cell: ({ row }) => (
-        <button
-          onClick={() => vendorsApi.patchVendorStatus(row.original.id, 'active').then(() => queryClient.invalidateQueries({ queryKey: ['vendors'] }))}
-          className="text-[var(--color-royal-blue)] hover:underline text-sm font-medium"
-        >
-          Edit
-        </button>
-      ),
+      header: 'Actions',
+      cell: ({ row }) => {
+        const { id, status } = row.original;
+        if (status === 'pending') {
+          return (
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-green-600 border-green-200 hover:bg-green-50 text-xs px-2 py-1"
+                onClick={() => approveMutation.mutate(id)}
+                disabled={approveMutation.isPending || rejectMutation.isPending}
+              >
+                Approve
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-red-600 border-red-200 hover:bg-red-50 text-xs px-2 py-1"
+                onClick={() => rejectMutation.mutate(id)}
+                disabled={approveMutation.isPending || rejectMutation.isPending}
+              >
+                Reject
+              </Button>
+            </div>
+          );
+        }
+        if (status === 'active') {
+          return (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-gray-500 hover:text-red-600 text-xs px-2 py-1"
+              onClick={() => blockMutation.mutate(id)}
+              disabled={blockMutation.isPending}
+            >
+              Block
+            </Button>
+          );
+        }
+        if (status === 'blocked') {
+          return (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-green-600 hover:text-green-700 text-xs px-2 py-1"
+              onClick={() => approveMutation.mutate(id)}
+              disabled={approveMutation.isPending}
+            >
+              Unblock
+            </Button>
+          );
+        }
+        return null;
+      },
     },
-  ], [queryClient]);
+  ], [approveMutation, rejectMutation, blockMutation]);
 
   // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable({
@@ -187,9 +255,7 @@ export const VendorsPage = () => {
             </div>
             <form onSubmit={handleSubmit(onSubmit)} className="p-6 space-y-4 max-h-[75vh] overflow-y-auto">
               {mutation.isError && (
-                <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm">
-                  {mutation.error?.response?.data?.error || 'Failed to create vendor.'}
-                </div>
+                <ApiErrorBanner error={mutation.error} fallback="Failed to create vendor." />
               )}
               <div className="grid grid-cols-2 gap-4">
                 <div className="col-span-2">

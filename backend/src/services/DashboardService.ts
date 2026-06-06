@@ -2,26 +2,68 @@ import { prisma } from "../utils/prisma";
 import { Prisma } from "../generated/prisma/client";
 
 export class DashboardService {
-  static async getSummary(organizationId: string) {
-    const totalRfqs = await prisma.rfqs.count({
-      where: { organization_id: organizationId, deleted_at: null },
-    });
+  static async getSummary(organizationId: string, userVendorId: string | null = null) {
+    const totalRfqs = userVendorId
+      ? await prisma.rfqs.count({
+          where: {
+            organization_id: organizationId,
+            deleted_at: null,
+            rfq_vendors: {
+              some: {
+                vendor_id: userVendorId,
+                deleted_at: null,
+              },
+            },
+            status: {
+              in: ["published", "quotation_open", "quotation_closed", "under_review", "approved", "rejected", "converted_to_po"],
+            },
+          },
+        })
+      : await prisma.rfqs.count({
+          where: { organization_id: organizationId, deleted_at: null },
+        });
 
-    const totalVendors = await prisma.vendors.count({
-      where: { organization_id: organizationId, deleted_at: null },
-    });
+    const totalVendors = userVendorId
+      ? await prisma.quotations.count({
+          where: {
+            organization_id: organizationId,
+            vendor_id: userVendorId,
+            deleted_at: null,
+          },
+        })
+      : await prisma.vendors.count({
+          where: { organization_id: organizationId, deleted_at: null },
+        });
 
-    const activePOs = await prisma.purchase_orders.count({
-      where: {
-        organization_id: organizationId,
-        status: { in: ["generated", "sent", "accepted"] },
-        deleted_at: null,
-      },
-    });
+    const activePOs = userVendorId
+      ? await prisma.purchase_orders.count({
+          where: {
+            organization_id: organizationId,
+            vendor_id: userVendorId,
+            status: { in: ["generated", "sent", "accepted"] },
+            deleted_at: null,
+          },
+        })
+      : await prisma.purchase_orders.count({
+          where: {
+            organization_id: organizationId,
+            status: { in: ["generated", "sent", "accepted"] },
+            deleted_at: null,
+          },
+        });
 
-    const pendingApprovals = await prisma.approval_workflows.count({
-      where: { organization_id: organizationId, status: "pending", deleted_at: null },
-    });
+    const pendingApprovals = userVendorId
+      ? await prisma.invoices.count({
+          where: {
+            organization_id: organizationId,
+            vendor_id: userVendorId,
+            status: { in: ["pending", "sent"] },
+            deleted_at: null,
+          },
+        })
+      : await prisma.approval_workflows.count({
+          where: { organization_id: organizationId, status: "pending", deleted_at: null },
+        });
 
     return {
       total_rfqs: totalRfqs,
@@ -31,26 +73,44 @@ export class DashboardService {
     };
   }
 
-  static async getProcurementOverview(organizationId: string) {
+  static async getProcurementOverview(organizationId: string, userVendorId: string | null = null) {
     // 1. Spend by status
+    const spendWhere: any = { organization_id: organizationId, deleted_at: null };
+    if (userVendorId) {
+      spendWhere.vendor_id = userVendorId;
+    }
+
     const spendByStatus = await prisma.purchase_orders.groupBy({
       by: ["status"],
-      where: { organization_id: organizationId, deleted_at: null },
+      where: spendWhere,
       _sum: { total_amount: true },
     });
 
     // 2. Monthly spend trend for last 6 months
-    const monthlySpend = await prisma.$queryRawUnsafe<any[]>(
-      `SELECT 
-         to_char(created_at, 'YYYY-MM') as month,
-         COALESCE(SUM(total_amount), 0) as spend
-       FROM purchase_orders
-       WHERE organization_id = $1::uuid AND deleted_at IS NULL
-       GROUP BY month
-       ORDER BY month DESC
-       LIMIT 6`,
-      organizationId
-    );
+    const monthlySpend = userVendorId
+      ? await prisma.$queryRawUnsafe<any[]>(
+          `SELECT 
+             to_char(created_at, 'YYYY-MM') as month,
+             COALESCE(SUM(total_amount), 0) as spend
+           FROM purchase_orders
+           WHERE organization_id = $1::uuid AND vendor_id = $2::uuid AND deleted_at IS NULL
+           GROUP BY month
+           ORDER BY month DESC
+           LIMIT 6`,
+          organizationId,
+          userVendorId
+        )
+      : await prisma.$queryRawUnsafe<any[]>(
+          `SELECT 
+             to_char(created_at, 'YYYY-MM') as month,
+             COALESCE(SUM(total_amount), 0) as spend
+           FROM purchase_orders
+           WHERE organization_id = $1::uuid AND deleted_at IS NULL
+           GROUP BY month
+           ORDER BY month DESC
+           LIMIT 6`,
+          organizationId
+        );
 
     return {
       spend_by_status: spendByStatus.map((s) => ({

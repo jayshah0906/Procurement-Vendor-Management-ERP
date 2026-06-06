@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '../../store/authStore';
 import { invoicesApi } from '../../api/invoices.api';
@@ -12,6 +12,8 @@ import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { TableSkeleton } from '../../components/feedback/Skeleton';
 import { FilePdf, CreditCard, Plus, X, Receipt } from '@phosphor-icons/react';
+import { ApiErrorBanner } from '../../components/feedback/ApiErrorBanner';
+import { printDocument } from '../../utils/print';
 
 const invoiceSchema = z.object({
   purchase_order_id: z.string().min(1, 'Purchase order is required'),
@@ -54,9 +56,9 @@ export const InvoicesPage = () => {
   const invoices = Array.isArray(invoiceData) ? invoiceData : invoiceData?.items ?? [];
   const openPOs = Array.isArray(poData) ? poData : poData?.items ?? [];
 
-  const { register, handleSubmit, reset, watch, formState: { errors } } = useForm({
+  const { register, handleSubmit, reset, watch, setValue, formState: { errors } } = useForm({
     resolver: zodResolver(invoiceSchema),
-    defaultValues: { cgst: 0, sgst: 0, igst: 0 },
+    defaultValues: { cgst: 0, sgst: 0, igst: 0, grand_total: 0 },
   });
 
   const watchedSubtotal = watch('subtotal') || 0;
@@ -64,6 +66,10 @@ export const InvoicesPage = () => {
   const watchedSGST = watch('sgst') || 0;
   const watchedIGST = watch('igst') || 0;
   const computedGrandTotal = Number(watchedSubtotal) + Number(watchedCGST) + Number(watchedSGST) + Number(watchedIGST);
+
+  useEffect(() => {
+    setValue('grand_total', computedGrandTotal, { shouldValidate: true });
+  }, [computedGrandTotal, setValue]);
 
   const createMutation = useMutation({
     mutationFn: invoicesApi.createInvoice,
@@ -130,7 +136,20 @@ export const InvoicesPage = () => {
                         <Badge variant={statusVariant(invoice.status)}>{invoice.status}</Badge>
                       </td>
                       <td className="px-6 py-4 flex gap-2">
-                        <Button variant="ghost" size="sm" className="text-gray-500 hover:text-[var(--color-royal-blue)]">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-gray-500 hover:text-[var(--color-royal-blue)]"
+                          onClick={() => printDocument(`Invoice: ${invoice.invoice_number}`, {
+                            vendor_name: invoice.vendor?.company_name ?? invoice.purchase_order?.vendor?.company_name ?? '—',
+                            gst_number: '—',
+                            email: '—',
+                            doc_number: invoice.invoice_number,
+                            date: invoice.invoice_date ? new Date(invoice.invoice_date).toLocaleDateString() : '—',
+                            status: invoice.status,
+                            total_amount: invoice.grand_total
+                          }, [])}
+                        >
                           <FilePdf size={20} />
                         </Button>
                         {invoice.status !== 'paid' && isManager && (
@@ -166,9 +185,7 @@ export const InvoicesPage = () => {
             </div>
             <form onSubmit={handleSubmit(onSubmit)} className="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
               {createMutation.isError && (
-                <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm">
-                  {createMutation.error?.response?.data?.error || 'Failed to create invoice.'}
-                </div>
+                <ApiErrorBanner error={createMutation.error} fallback="Failed to create invoice." />
               )}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Purchase Order</label>
@@ -190,6 +207,7 @@ export const InvoicesPage = () => {
                 <Input label="Subtotal (₹)" type="number" step="0.01" {...register('subtotal', { valueAsNumber: true })} error={errors.subtotal?.message} />
                 <Input label="CGST (₹)" type="number" step="0.01" {...register('cgst', { valueAsNumber: true })} error={errors.cgst?.message} />
                 <Input label="SGST (₹)" type="number" step="0.01" {...register('sgst', { valueAsNumber: true })} error={errors.sgst?.message} />
+                <input type="hidden" {...register('grand_total', { valueAsNumber: true })} />
               </div>
               <div className="p-3 bg-gray-50 rounded-lg flex justify-between items-center text-sm">
                 <span className="font-semibold text-gray-700">Grand Total:</span>

@@ -6,6 +6,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { rfqsApi } from '../../api/rfqs.api';
 import { vendorsApi } from '../../api/vendors.api';
+import { useAuthStore } from '../../store/authStore';
 import { masterApi } from '../../api/master.api';
 import { Card, CardContent, CardHeader } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
@@ -13,6 +14,7 @@ import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
 import { TableSkeleton } from '../../components/feedback/Skeleton';
 import { Plus, Trash, X, FileText, Users, ChartBar } from '@phosphor-icons/react';
+import { ApiErrorBanner } from '../../components/feedback/ApiErrorBanner';
 
 const rfqSchema = z.object({
   title: z.string().min(3, 'Title is required'),
@@ -34,6 +36,8 @@ const statusVariant = (status) => {
 };
 
 export const RFQsPage = () => {
+  const { user } = useAuthStore();
+  const isVendor = user?.role === 'Vendor';
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -112,9 +116,11 @@ export const RFQsPage = () => {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <h1 className="text-2xl font-bold text-gray-900">Requests for Quotation</h1>
-        <Button variant="primary" onClick={() => setIsCreateOpen(true)}>
-          <Plus size={18} className="mr-2" /> Create RFQ
-        </Button>
+        {!isVendor && (
+          <Button variant="primary" onClick={() => setIsCreateOpen(true)}>
+            <Plus size={18} className="mr-2" /> Create RFQ
+          </Button>
+        )}
       </div>
 
       <Card>
@@ -135,6 +141,7 @@ export const RFQsPage = () => {
                     <th className="px-6 py-4 font-semibold text-gray-600 uppercase tracking-wider">Title</th>
                     <th className="px-6 py-4 font-semibold text-gray-600 uppercase tracking-wider">Category</th>
                     <th className="px-6 py-4 font-semibold text-gray-600 uppercase tracking-wider">Deadline</th>
+                    <th className="px-6 py-4 font-semibold text-gray-600 uppercase tracking-wider">Invited</th>
                     <th className="px-6 py-4 font-semibold text-gray-600 uppercase tracking-wider">Status</th>
                     <th className="px-6 py-4 font-semibold text-gray-600 uppercase tracking-wider">Actions</th>
                   </tr>
@@ -143,54 +150,80 @@ export const RFQsPage = () => {
                   {rfqs.map((rfq) => (
                     <tr key={rfq.id} className="hover:bg-gray-50 transition-colors">
                       <td className="px-6 py-4 text-gray-900 font-medium">{rfq.title}</td>
-                      <td className="px-6 py-4 text-gray-600">{rfq.category?.name ?? '—'}</td>
+                      <td className="px-6 py-4 text-gray-600">{rfq.category?.name ?? rfq.category ?? '—'}</td>
                       <td className="px-6 py-4 text-gray-600">
                         {rfq.deadline ? new Date(rfq.deadline).toLocaleDateString() : '—'}
+                      </td>
+                      <td className="px-6 py-4">
+                        {rfq.invited_vendors && rfq.invited_vendors.length > 0 ? (
+                          <span
+                            className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 cursor-help"
+                            title={rfq.invited_vendors.join(', ')}
+                          >
+                            {rfq.invited_vendors.length} Invited
+                          </span>
+                        ) : (
+                          <span className="text-gray-400">—</span>
+                        )}
                       </td>
                       <td className="px-6 py-4">
                         <Badge variant={statusVariant(rfq.status)}>{rfq.status?.replace('_', ' ')}</Badge>
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex flex-wrap gap-2">
-                          {rfq.status === 'draft' && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => publishMutation.mutate(rfq.id)}
-                              disabled={publishMutation.isPending}
-                            >
-                              Publish
-                            </Button>
-                          )}
-                          {rfq.status === 'published' && (
+                          {isVendor ? (
+                            rfq.status === 'published' && (
+                              <Button
+                                variant="primary"
+                                size="sm"
+                                onClick={() => navigate(`/erp/quotations/submit/${rfq.id}`)}
+                              >
+                                Submit Quote
+                              </Button>
+                            )
+                          ) : (
                             <>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => { setInviteRFQ(rfq); setSelectedVendorIds([]); }}
-                              >
-                                <Users size={14} className="mr-1" /> Invite Vendors
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="text-red-500 hover:bg-red-50"
-                                onClick={() => closeMutation.mutate(rfq.id)}
-                                disabled={closeMutation.isPending}
-                              >
-                                Close
-                              </Button>
+                              {rfq.status === 'draft' && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => publishMutation.mutate(rfq.id)}
+                                  disabled={publishMutation.isPending}
+                                >
+                                  Publish
+                                </Button>
+                              )}
+                              {rfq.status === 'published' && (
+                                <>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => { setInviteRFQ(rfq); setSelectedVendorIds([]); }}
+                                  >
+                                    <Users size={14} className="mr-1" /> Invite Vendors
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="text-red-500 hover:bg-red-50"
+                                    onClick={() => closeMutation.mutate(rfq.id)}
+                                    disabled={closeMutation.isPending}
+                                  >
+                                    Close
+                                  </Button>
+                                </>
+                              )}
+                              {(rfq.status === 'published' || rfq.status === 'closed' || rfq.status === 'approved' || rfq.status === 'awarded') && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="text-[var(--color-royal-blue)]"
+                                  onClick={() => navigate(`/erp/compare?rfq_id=${rfq.id}`)}
+                                >
+                                  <ChartBar size={14} className="mr-1" /> Compare Bids
+                                </Button>
+                              )}
                             </>
-                          )}
-                          {(rfq.status === 'published' || rfq.status === 'closed' || rfq.status === 'approved' || rfq.status === 'awarded') && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="text-[var(--color-royal-blue)]"
-                              onClick={() => navigate(`/erp/compare?rfq_id=${rfq.id}`)}
-                            >
-                              <ChartBar size={14} className="mr-1" /> Compare Bids
-                            </Button>
                           )}
                         </div>
                       </td>
@@ -247,8 +280,8 @@ export const RFQsPage = () => {
               )}
             </div>
             {inviteMutation.isError && (
-              <div className="mx-6 mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm">
-                {inviteMutation.error?.response?.data?.error || 'Failed to invite vendors.'}
+              <div className="mx-6 mb-4">
+                <ApiErrorBanner error={inviteMutation.error} fallback="Failed to invite vendors." />
               </div>
             )}
             <div className="px-6 pb-6 flex justify-end gap-3 border-t border-gray-100 pt-4">
@@ -277,9 +310,7 @@ export const RFQsPage = () => {
             </div>
             <form onSubmit={handleSubmit(onSubmit)} className="p-6 space-y-5 max-h-[80vh] overflow-y-auto">
               {createMutation.isError && (
-                <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm">
-                  {createMutation.error?.response?.data?.error || 'Failed to create RFQ.'}
-                </div>
+                <ApiErrorBanner error={createMutation.error} fallback="Failed to create RFQ." />
               )}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div className="col-span-2">

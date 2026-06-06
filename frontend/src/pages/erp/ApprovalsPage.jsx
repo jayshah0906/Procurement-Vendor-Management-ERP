@@ -1,6 +1,8 @@
+import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { approvalsApi } from '../../api/approvals.api';
+import { ApiErrorBanner } from '../../components/feedback/ApiErrorBanner';
 import { Card, CardContent } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
@@ -25,6 +27,7 @@ export const ApprovalsPage = () => {
   const queryClient = useQueryClient();
   const { user } = useAuthStore();
   const currentUserId = user?.id;
+  const [actionType, setActionType] = useState(null);
 
   // List all workflows if no specific ID is provided
   const { data: workflowsData, isLoading: loadingList } = useQuery({
@@ -217,7 +220,8 @@ export const ApprovalsPage = () => {
                             onSubmit={(e) => {
                               e.preventDefault();
                               const remarks = e.target.remarks.value;
-                              const action = e.nativeEvent.submitter.value;
+                              const action = actionType;
+                              if (!action) return;
                               actionMutation.mutate({ stepId: step.id, action, remarks });
                             }}
                           >
@@ -230,22 +234,27 @@ export const ApprovalsPage = () => {
                             <div className="flex gap-3">
                               <Button
                                 type="submit"
-                                value="reject"
                                 variant="outline"
                                 className="text-red-600 border-red-200 hover:bg-red-50"
+                                onClick={() => setActionType('reject')}
                                 disabled={actionMutation.isPending}
                               >
                                 Reject
                               </Button>
                               <Button
                                 type="submit"
-                                value="approve"
                                 variant="primary"
+                                onClick={() => setActionType('approve')}
                                 disabled={actionMutation.isPending}
                               >
                                 Approve
                               </Button>
                             </div>
+                            {actionMutation.isError && (
+                              <div className="mt-3">
+                                <ApiErrorBanner error={actionMutation.error} fallback="Failed to submit approval action." />
+                              </div>
+                            )}
                           </form>
                         </div>
                       )}

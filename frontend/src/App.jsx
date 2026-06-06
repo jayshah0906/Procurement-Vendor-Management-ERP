@@ -41,13 +41,17 @@ function App() {
             {/* Dashboard: All authenticated users */}
             <Route path="dashboard" element={<DashboardPage />} />
 
-            {/* Vendor Management & RFQs & Purchase Orders: Procurement Manager & Officer only */}
+            {/* Vendor Management & Purchase Orders: Procurement Manager & Officer only */}
             <Route element={<ProtectedRoute allowedRoles={[ROLES.PROCUREMENT_MANAGER, ROLES.PROCUREMENT_OFFICER]} />}>
               <Route path="vendors" element={<VendorsPage />} />
-              <Route path="rfqs" element={<RFQsPage />} />
               <Route path="compare" element={<ComparisonPage />} />
               <Route path="orders" element={<PurchaseOrdersPage />} />
               <Route path="orders/:id" element={<PurchaseOrderDetailPage />} />
+            </Route>
+
+            {/* RFQs: Procurement Manager, Officer, Vendor */}
+            <Route element={<ProtectedRoute allowedRoles={[ROLES.PROCUREMENT_MANAGER, ROLES.PROCUREMENT_OFFICER, ROLES.VENDOR]} />}>
+              <Route path="rfqs" element={<RFQsPage />} />
             </Route>
 
             {/* Quotations: Procurement Manager, Officer, Vendor */}

@@ -199,6 +199,9 @@ export class QuotationService {
           rfqs: {
             select: { rfq_number: true, title: true },
           },
+          purchase_orders: {
+            select: { id: true, po_number: true, status: true },
+          },
         },
       }),
       prisma.quotations.count({ where }),
@@ -213,6 +216,7 @@ export class QuotationService {
         rfq_title: q.rfqs?.title || null,
         vendor_id: q.vendor_id,
         vendor_name: q.vendors?.company_name || null,
+        vendor: q.vendors ? { company_name: q.vendors.company_name } : null,
         subtotal: q.subtotal,
         tax_amount: q.tax_amount,
         grand_total: q.grand_total,
@@ -221,6 +225,7 @@ export class QuotationService {
         status: q.status,
         submitted_at: q.submitted_at,
         created_at: q.created_at,
+        purchase_orders: q.purchase_orders || [],
       })),
       pagination: {
         total,

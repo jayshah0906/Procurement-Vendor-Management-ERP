@@ -32,7 +32,7 @@ export class ApprovalService {
     data: {
       entity_type: string;
       entity_id: string;
-      approvers: Array<{
+      approvers?: Array<{
         approver_id: string;
         level_no: number;
       }>;
@@ -84,8 +84,27 @@ export class ApprovalService {
       });
 
       // 3. Create Workflow Steps
+      let approverList = data.approvers || [];
+      if (approverList.length === 0) {
+        // Fetch all active approvers in the organization
+        const dbApprovers = await tx.users.findMany({
+          where: {
+            organization_id: organizationId,
+            role_id: 4, // Approver role
+            is_active: true,
+            deleted_at: null,
+          },
+          orderBy: { created_at: "asc" },
+        });
+
+        approverList = dbApprovers.map((app, index) => ({
+          approver_id: app.id,
+          level_no: index + 1,
+        }));
+      }
+
       const steps = await Promise.all(
-        data.approvers.map((app) =>
+        approverList.map((app) =>
           tx.approval_steps.create({
             data: {
               workflow_id: workflow.id,
@@ -122,7 +141,7 @@ export class ApprovalService {
         entityType: "approval_workflows",
         entityId: workflow.id,
         action: "APPROVAL_INITIATED",
-        newValue: { entity_type: data.entity_type, entity_id: data.entity_id, steps: data.approvers.length },
+        newValue: { entity_type: data.entity_type, entity_id: data.entity_id, steps: steps.length },
       });
 
       return {

@@ -6,6 +6,7 @@ import { Skeleton } from '../../components/feedback/Skeleton';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { Clock, FileText, Users, ShoppingCart } from '@phosphor-icons/react';
 import { Badge } from '../../components/ui/Badge';
+import { useAuthStore } from '../../store/authStore';
 
 const MetricCard = ({ title, value, icon, colorClass, isLoading }) => (
   <Card>
@@ -37,6 +38,9 @@ const rfqStatusColor = (status) => {
 };
 
 export const DashboardPage = () => {
+  const { user } = useAuthStore();
+  const isVendor = user?.role === 'Vendor';
+
   const { data: summary, isLoading: loadingSummary } = useQuery({
     queryKey: ['dashboard', 'summary'],
     queryFn: dashboardApi.getSummary,
@@ -59,33 +63,35 @@ export const DashboardPage = () => {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-gray-900">Procurement Overview</h1>
+      <h1 className="text-2xl font-bold text-gray-900">
+        {isVendor ? 'Vendor Portal Overview' : 'Procurement Overview'}
+      </h1>
 
       {/* Metrics Row */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
         <MetricCard
-          title="Pending Approvals"
+          title={isVendor ? 'Pending Payments' : 'Pending Approvals'}
           value={summary?.pending_approvals}
           icon={<Clock size={24} weight="fill" />}
           colorClass="bg-yellow-100 text-yellow-600"
           isLoading={loadingSummary}
         />
         <MetricCard
-          title="Total RFQs"
+          title={isVendor ? 'Invited RFQs' : 'Total RFQs'}
           value={summary?.total_rfqs}
           icon={<FileText size={24} weight="fill" />}
           colorClass="bg-[var(--color-pale-blue)] text-[var(--color-royal-blue)]"
           isLoading={loadingSummary}
         />
         <MetricCard
-          title="Total Vendors"
+          title={isVendor ? 'Submitted Bids' : 'Total Vendors'}
           value={summary?.total_vendors}
-          icon={<Users size={24} weight="fill" />}
+          icon={isVendor ? <FileText size={24} weight="fill" /> : <Users size={24} weight="fill" />}
           colorClass="bg-fuchsia-100 text-[var(--color-eggplant)]"
           isLoading={loadingSummary}
         />
         <MetricCard
-          title="Active POs"
+          title={isVendor ? 'Active Orders' : 'Active POs'}
           value={summary?.active_purchase_orders}
           icon={<ShoppingCart size={24} weight="fill" />}
           colorClass="bg-green-100 text-green-600"
@@ -96,7 +102,7 @@ export const DashboardPage = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Spend Chart */}
         <Card className="lg:col-span-2">
-          <CardHeader title="Monthly Spend Trend" />
+          <CardHeader title={isVendor ? 'Monthly Sales Trend' : 'Monthly Spend Trend'} />
           <CardContent className="h-80">
             {loadingProcurement ? (
               <Skeleton className="w-full h-full" />

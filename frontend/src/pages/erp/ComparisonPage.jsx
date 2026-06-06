@@ -10,6 +10,7 @@ import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
 import { Skeleton } from '../../components/feedback/Skeleton';
 import { CheckCircle, ShoppingCart, X } from '@phosphor-icons/react';
+import { ApiErrorBanner } from '../../components/feedback/ApiErrorBanner';
 
 const fmt = (n) =>
   n != null ? Number(n).toLocaleString('en-IN', { style: 'currency', currency: 'INR' }) : '—';
@@ -21,6 +22,9 @@ export const ComparisonPage = () => {
   const queryClient = useQueryClient();
   const [poModal, setPoModal] = useState(null); // quotation object for PO
   const [poNotes, setPoNotes] = useState('');
+  const [deliveryDate, setDeliveryDate] = useState('');
+  const [shippingAddress, setShippingAddress] = useState('Main Warehouse, Building C');
+  const [billingAddress, setBillingAddress] = useState('Finance Dept, Block B');
 
   // Fetch all RFQs for the selector
   const { data: rfqData } = useQuery({
@@ -57,13 +61,20 @@ export const ComparisonPage = () => {
   });
 
   const createPoMutation = useMutation({
-    mutationFn: ({ quotation_id, notes }) =>
-      purchaseOrdersApi.createPurchaseOrder({ quotation_id, notes }),
+    mutationFn: ({ quotation_id, delivery_date, shipping_address, billing_address, notes }) =>
+      purchaseOrdersApi.createPurchaseOrder({
+        quotation_id,
+        delivery_date,
+        shipping_address,
+        billing_address,
+        terms: notes,
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['purchase-orders'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard', 'summary'] });
       setPoModal(null);
       setPoNotes('');
+      setDeliveryDate('');
       navigate('/erp/orders');
     },
   });
@@ -112,19 +123,23 @@ export const ComparisonPage = () => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {quotations.map((q) => {
             const isLowest = Number(q.grand_total) === lowestTotal;
+            const hasPo = Array.isArray(q.purchase_orders) && q.purchase_orders.length > 0;
             const isSelected = q.status === 'selected' || q.status === 'accepted';
             return (
-              <Card key={q.id} className={`${isLowest ? 'ring-2 ring-[var(--color-royal-blue)]' : ''} ${isSelected ? 'ring-2 ring-green-500' : ''}`}>
-                {isLowest && !isSelected && (
+              <Card key={q.id} className={`${isLowest ? 'ring-2 ring-[var(--color-royal-blue)]' : ''} ${hasPo ? 'ring-2 ring-emerald-500' : isSelected ? 'ring-2 ring-green-500' : ''}`}>
+                {hasPo ? (
+                  <div className="bg-emerald-600 text-white text-center text-xs font-bold py-1 uppercase tracking-wide">
+                    ✓ PO Generated ({q.purchase_orders[0].po_number})
+                  </div>
+                ) : isSelected ? (
+                  <div className="bg-green-500 text-white text-center text-xs font-bold py-1 uppercase tracking-wide">
+                    ✓ Selected (Approved)
+                  </div>
+                ) : isLowest ? (
                   <div className="bg-[var(--color-royal-blue)] text-white text-center text-xs font-bold py-1 uppercase tracking-wide">
                     ⭐ Lowest Price
                   </div>
-                )}
-                {isSelected && (
-                  <div className="bg-green-500 text-white text-center text-xs font-bold py-1 uppercase tracking-wide">
-                    ✓ Selected
-                  </div>
-                )}
+                ) : null}
                 <CardContent className="p-6">
                   <div className="flex justify-between items-start mb-4">
                     <h3 className="font-bold text-lg text-gray-900 truncate">
@@ -165,7 +180,28 @@ export const ComparisonPage = () => {
                       </div>
                     )}
                   </div>
-                  {!isSelected && q.status !== 'rejected' && (
+                  {hasPo ? (
+                    <div className="text-center text-xs font-semibold text-emerald-600 bg-emerald-50 border border-emerald-100 rounded-lg py-2">
+                      PO Generated: {q.purchase_orders[0].po_number}
+                    </div>
+                  ) : q.status === 'selected' ? (
+                    <Button
+                      variant="primary"
+                      className="w-full bg-green-600 hover:bg-green-700 text-white"
+                      onClick={() => setPoModal(q)}
+                    >
+                      <ShoppingCart size={18} className="mr-2" />
+                      Generate Purchase Order
+                    </Button>
+                  ) : q.status === 'under_review' ? (
+                    <Button
+                      variant="outline"
+                      className="w-full text-yellow-600 border-yellow-200 hover:bg-yellow-50"
+                      disabled
+                    >
+                      Pending Approval
+                    </Button>
+                  ) : q.status !== 'rejected' ? (
                     <Button
                       variant={isLowest ? 'primary' : 'outline'}
                       className="w-full"
@@ -175,7 +211,7 @@ export const ComparisonPage = () => {
                       <CheckCircle size={18} className="mr-2" />
                       {isLowest ? 'Award & Create PO' : 'Select Vendor'}
                     </Button>
-                  )}
+                  ) : null}
                 </CardContent>
               </Card>
             );
@@ -211,28 +247,68 @@ export const ComparisonPage = () => {
                   <span className="font-mono text-xs">{poModal.id?.slice(0, 12)}…</span>
                 </div>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Notes / Terms (optional)</label>
-                <textarea
-                  value={poNotes}
-                  onChange={(e) => setPoNotes(e.target.value)}
-                  rows={3}
-                  placeholder="e.g. Payment within 30 days. Delivery to warehouse A."
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-royal-blue)] resize-none"
-                />
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Delivery Date (Required)</label>
+                  <input
+                    type="date"
+                    required
+                    value={deliveryDate}
+                    onChange={(e) => setDeliveryDate(e.target.value)}
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-royal-blue)]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Shipping Address (Required)</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Main Warehouse, Building C"
+                    value={shippingAddress}
+                    onChange={(e) => setShippingAddress(e.target.value)}
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-royal-blue)]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Billing Address (Required)</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Finance Dept, Block B"
+                    value={billingAddress}
+                    onChange={(e) => setBillingAddress(e.target.value)}
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-royal-blue)]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Notes / Terms (optional)</label>
+                  <textarea
+                    value={poNotes}
+                    onChange={(e) => setPoNotes(e.target.value)}
+                    rows={2}
+                    placeholder="e.g. Payment within 30 days. Delivery to warehouse A."
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-royal-blue)] resize-none"
+                  />
+                </div>
               </div>
               {createPoMutation.isError && (
-                <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm">
-                  {createPoMutation.error?.response?.data?.error || 'Failed to create purchase order.'}
-                </div>
+                <ApiErrorBanner error={createPoMutation.error} fallback="Failed to create purchase order." />
               )}
             </div>
             <div className="px-6 pb-6 flex justify-end gap-3 border-t border-gray-100 pt-4">
               <Button variant="ghost" onClick={() => setPoModal(null)}>Cancel</Button>
               <Button
                 variant="primary"
-                onClick={() => createPoMutation.mutate({ quotation_id: poModal.id, notes: poNotes })}
-                disabled={createPoMutation.isPending}
+                onClick={() =>
+                  createPoMutation.mutate({
+                    quotation_id: poModal.id,
+                    delivery_date: deliveryDate,
+                    shipping_address: shippingAddress,
+                    billing_address: billingAddress,
+                    notes: poNotes,
+                  })
+                }
+                disabled={createPoMutation.isPending || !deliveryDate || !shippingAddress || !billingAddress}
               >
                 <ShoppingCart size={18} className="mr-2" />
                 {createPoMutation.isPending ? 'Creating PO...' : 'Generate Purchase Order'}

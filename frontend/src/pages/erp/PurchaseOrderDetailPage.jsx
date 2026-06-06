@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { useParams, useNavigate } from 'react-router-dom';
 import { purchaseOrdersApi } from '../../api/purchaseOrders.api';
+import { printDocument } from '../../utils/print';
 import { Card, CardContent, CardHeader } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
@@ -56,7 +57,18 @@ export const PurchaseOrderDetailPage = () => {
           </h1>
           <Badge variant={statusVariant(po.status)} className="ml-2">{po.status?.replace('_', ' ')}</Badge>
         </div>
-        <Button variant="outline">
+        <Button
+          variant="outline"
+          onClick={() => printDocument(`Purchase Order: ${po.po_number || po.id.slice(0, 8)}`, {
+            vendor_name: po.vendor?.company_name || '—',
+            gst_number: po.vendor?.gst_number || '—',
+            email: po.vendor?.email || '—',
+            doc_number: po.po_number || po.id.slice(0, 8),
+            date: po.created_at ? new Date(po.created_at).toLocaleDateString() : '—',
+            status: po.status,
+            total_amount: po.total_amount
+          }, po.po_items || [])}
+        >
           <DownloadSimple size={18} className="mr-2" /> Download PDF
         </Button>
       </div>

@@ -170,6 +170,12 @@ export class RFQService {
           users: {
             select: { first_name: true, last_name: true, email: true },
           },
+          rfq_vendors: {
+            where: { deleted_at: null },
+            include: {
+              vendors: true,
+            },
+          },
         },
       }),
       prisma.rfqs.count({ where }),
@@ -192,6 +198,7 @@ export class RFQService {
           category_id: r.category_id,
           created_by_user: `${r.users.first_name} ${r.users.last_name || ""}`.trim(),
           created_at: r.created_at,
+          invited_vendors: r.rfq_vendors.map((rv) => rv.vendors.company_name),
         };
       }),
       pagination: {

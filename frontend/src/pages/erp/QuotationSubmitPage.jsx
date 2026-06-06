@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader } from '../../components/ui/Card';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
 import { Skeleton } from '../../components/feedback/Skeleton';
+import { ApiErrorBanner } from '../../components/feedback/ApiErrorBanner';
 
 const quoteItemSchema = z.object({
   rfq_item_id: z.string(),
@@ -30,10 +31,11 @@ export const QuotationSubmitPage = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  const { data: rfq, isLoading } = useQuery({
+  const { data: rfq, isLoading, error } = useQuery({
     queryKey: ['rfqs', rfqId],
     queryFn: () => rfqsApi.getRfqById(rfqId),
     enabled: !!rfqId,
+    retry: false,
   });
 
   const { register, control, handleSubmit, watch, formState: { errors } } = useForm({
@@ -75,6 +77,8 @@ export const QuotationSubmitPage = () => {
 
   const onSubmit = (data) => mutation.mutate(data);
 
+  const isForbidden = error?.response?.status === 403;
+
   if (isLoading) {
     return (
       <div className="max-w-3xl mx-auto space-y-6">
@@ -84,9 +88,28 @@ export const QuotationSubmitPage = () => {
     );
   }
 
-  if (!rfq) {
+  if (isForbidden) {
     return (
-      <div className="text-center py-12 text-gray-500">RFQ not found.</div>
+      <div className="max-w-3xl mx-auto py-12 px-4 text-center">
+        <div className="p-8 rounded-xl bg-red-50 border border-red-200 max-w-lg mx-auto shadow-sm">
+          <h2 className="text-xl font-bold text-red-800 mb-2">Access Denied</h2>
+          <p className="text-sm text-red-600 mb-6 font-medium">
+            You are not invited to submit a quotation for this Request for Quotation (RFQ).
+          </p>
+          <Button variant="primary" onClick={() => navigate('/erp/rfqs')}>
+            Return to RFQs
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!rfq || error) {
+    return (
+      <div className="max-w-3xl mx-auto py-12 text-center text-gray-500">
+        <p className="mb-4">RFQ not found or failed to load details.</p>
+        <Button variant="outline" onClick={() => navigate('/erp/rfqs')}>Back to RFQs</Button>
+      </div>
     );
   }
 
@@ -114,41 +137,81 @@ export const QuotationSubmitPage = () => {
 
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 pt-4 border-t border-gray-100">
             {mutation.isError && (
-              <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm">
-                {mutation.error?.response?.data?.error || 'Failed to submit quotation.'}
-              </div>
+              <ApiErrorBanner error={mutation.error} fallback="Failed to submit quotation." />
             )}
 
             <div className="space-y-4">
               <h4 className="font-semibold text-gray-700">Your Bid for Each Item</h4>
-              {fields.map((field, index) => (
-                <div key={field.id} className="p-4 border border-gray-100 rounded-lg bg-gray-50">
-                  <div className="flex justify-between mb-3">
-                    <p className="font-medium text-gray-900">{rfqItems[index]?.item_name ?? field.item_name}</p>
-                    <p className="text-sm text-gray-500">Required: {fmt(rfqItems[index]?.quantity)} {rfqItems[index]?.unit}</p>
-                  </div>
-                  <input type="hidden" {...register(`items.${index}.rfq_item_id`)} />
-                  <input type="hidden" {...register(`items.${index}.item_name`)} />
-                  <input type="hidden" {...register(`items.${index}.quantity`, { valueAsNumber: true })} />
-                  <div className="grid grid-cols-2 gap-4">
-                    <Input
-                      label="Unit Price (₹)"
-                      type="number"
-                      step="0.01"
-                      min="0.01"
-                      {...register(`items.${index}.unit_price`, { valueAsNumber: true })}
-                      error={errors?.items?.[index]?.unit_price?.message}
-                    />
-                    <Input
-                      label="Delivery Days"
-                      type="number"
-                      min="1"
-                      {...register(`items.${index}.delivery_days`, { valueAsNumber: true })}
-                      error={errors?.items?.[index]?.delivery_days?.message}
-                    />
-                  </div>
-                </div>
-              ))}
+              <div className="overflow-x-auto border border-gray-200 rounded-lg">
+                <table className="w-full text-left text-sm">
+                  <thead className="bg-gray-50 border-b border-gray-200">
+                    <tr>
+                      <th className="px-4 py-3 font-semibold text-gray-600">Item Name</th>
+                      <th className="px-4 py-3 font-semibold text-gray-600">Qty & Unit</th>
+                      <th className="px-4 py-3 font-semibold text-gray-600 w-48">Unit Price (₹)</th>
+                      <th className="px-4 py-3 font-semibold text-gray-600 w-36">Delivery Days</th>
+                      <th className="px-4 py-3 font-semibold text-gray-600 text-right">Total (₹)</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100 bg-white">
+                    {fields.map((field, index) => {
+                      const qty = Number(rfqItems[index]?.quantity ?? field.quantity) || 0;
+                      const unitPrice = Number(watchedItems[index]?.unit_price) || 0;
+                      const total = qty * unitPrice;
+
+                      return (
+                        <tr key={field.id} className="hover:bg-gray-50 transition-colors">
+                          <td className="px-4 py-3 text-gray-900 font-medium align-middle">
+                            {rfqItems[index]?.item_name ?? field.item_name}
+                          </td>
+                          <td className="px-4 py-3 text-gray-600 align-middle whitespace-nowrap">
+                            {qty} {rfqItems[index]?.unit ?? 'pcs'}
+                          </td>
+                          <td className="px-4 py-3 align-middle">
+                            <input type="hidden" {...register(`items.${index}.rfq_item_id`)} />
+                            <input type="hidden" {...register(`items.${index}.item_name`)} />
+                            <input type="hidden" {...register(`items.${index}.quantity`, { valueAsNumber: true })} />
+                            <div>
+                              <input
+                                type="number"
+                                step="0.01"
+                                min="0.01"
+                                placeholder="0.00"
+                                {...register(`items.${index}.unit_price`, { valueAsNumber: true })}
+                                className={`w-full border rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-royal-blue)] ${
+                                  errors?.items?.[index]?.unit_price ? 'border-red-500' : 'border-gray-200'
+                                }`}
+                              />
+                              {errors?.items?.[index]?.unit_price && (
+                                <p className="text-red-500 text-xs mt-0.5">{errors.items[index].unit_price.message}</p>
+                              )}
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 align-middle">
+                            <div>
+                              <input
+                                type="number"
+                                min="1"
+                                placeholder="7"
+                                {...register(`items.${index}.delivery_days`, { valueAsNumber: true })}
+                                className={`w-full border rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-royal-blue)] ${
+                                  errors?.items?.[index]?.delivery_days ? 'border-red-500' : 'border-gray-200'
+                                }`}
+                              />
+                              {errors?.items?.[index]?.delivery_days && (
+                                <p className="text-red-500 text-xs mt-0.5">{errors.items[index].delivery_days.message}</p>
+                              )}
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 text-gray-900 font-semibold text-right align-middle whitespace-nowrap">
+                            ₹{total.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
             </div>
 
             {/* Price Summary */}

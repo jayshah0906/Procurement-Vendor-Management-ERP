@@ -129,6 +129,11 @@ export class InvoiceService {
         po_number: inv.purchase_orders?.po_number || null,
         vendor_id: inv.vendor_id,
         vendor_name: inv.vendors?.company_name || null,
+        vendor: inv.vendors ? { company_name: inv.vendors.company_name } : null,
+        purchase_order: inv.purchase_orders ? {
+          po_number: inv.purchase_orders.po_number,
+          vendor: inv.vendors ? { company_name: inv.vendors.company_name } : null
+        } : null,
         subtotal: inv.subtotal,
         cgst: inv.cgst,
         sgst: inv.sgst,

@@ -154,6 +154,7 @@ export class PurchaseOrderService {
         quotation_id: po.quotation_id,
         vendor_id: po.vendor_id,
         vendor_name: po.vendors?.company_name || null,
+        vendor: po.vendors ? { company_name: po.vendors.company_name } : null,
         subtotal: po.subtotal,
         tax_amount: po.tax_amount,
         total_amount: po.total_amount,
@@ -176,7 +177,7 @@ export class PurchaseOrderService {
       include: {
         purchase_order_items: { where: { deleted_at: null } },
         vendors: {
-          select: { company_name: true, email: true, phone: true, address: true },
+          select: { company_name: true, email: true, phone: true, address: true, contact_person: true, gst_number: true },
         },
         users: {
           select: { first_name: true, last_name: true },
@@ -199,6 +200,14 @@ export class PurchaseOrderService {
       vendor_id: po.vendor_id,
       vendor_name: po.vendors?.company_name || null,
       vendor_details: po.vendors,
+      vendor: po.vendors ? {
+        company_name: po.vendors.company_name,
+        contact_person: po.vendors.contact_person,
+        email: po.vendors.email,
+        phone: po.vendors.phone,
+        address: po.vendors.address,
+        gst_number: po.vendors.gst_number,
+      } : null,
       subtotal: po.subtotal,
       tax_amount: po.tax_amount,
       total_amount: po.total_amount,
@@ -210,6 +219,7 @@ export class PurchaseOrderService {
       generated_by_user: po.users ? `${po.users.first_name} ${po.users.last_name || ""}`.trim() : null,
       created_at: po.created_at,
       items: po.purchase_order_items,
+      po_items: po.purchase_order_items,
     };
   }
 

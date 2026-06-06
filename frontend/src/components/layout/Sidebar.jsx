@@ -41,7 +41,7 @@ export const Sidebar = () => {
       to: '/erp/rfqs',
       label: 'RFQs',
       icon: <FileText size={20} />,
-      roles: [ROLES.PROCUREMENT_MANAGER, ROLES.PROCUREMENT_OFFICER],
+      roles: [ROLES.PROCUREMENT_MANAGER, ROLES.PROCUREMENT_OFFICER, ROLES.VENDOR],
     },
     {
       to: '/erp/quotations',

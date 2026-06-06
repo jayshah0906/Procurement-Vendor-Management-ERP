@@ -11,7 +11,7 @@ export const initiateApprovalSchema = {
       required_error: "Entity type must be quotation, po, or vendor",
     }),
     entity_id: z.string().uuid("Entity ID must be a valid UUID"),
-    approvers: z.array(approverSchema).min(1, "At least one approver is required"),
+    approvers: z.array(approverSchema).optional(),
   }),
 };
 
