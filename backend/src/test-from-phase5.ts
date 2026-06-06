@@ -38,6 +38,18 @@ async function cleanupAndPrepare(quotationId: string, rfqId: string | null) {
       }
     });
 
+    // Find Invoices linked to POs
+    const invoices = await prisma.invoices.findMany({
+      where: { purchase_order_id: { in: poIds } }
+    });
+    const invoiceIds = invoices.map(i => i.id);
+
+    if (invoiceIds.length > 0) {
+      await prisma.invoice_email_logs.deleteMany({
+        where: { invoice_id: { in: invoiceIds } }
+      });
+    }
+
     // Delete Invoices
     await prisma.invoices.deleteMany({
       where: { purchase_order_id: { in: poIds } }

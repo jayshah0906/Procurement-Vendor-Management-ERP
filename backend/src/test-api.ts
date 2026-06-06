@@ -1,3 +1,4 @@
+process.env.NODE_ENV = "test";
 import app from "./app";
 import { Server } from "http";
 import { prisma } from "./utils/prisma";
