@@ -42,4 +42,11 @@ export const dashboardApi = {
    */
   getRfqConversion: () =>
     client.get('/analytics/rfq-conversion').then((r) => r.data.data),
+
+  /**
+   * GET /analytics/reports
+   * Returns consolidated analytics data for reports view
+   */
+  getReportsData: (month) =>
+    client.get('/analytics/reports', { params: { month } }).then((r) => r.data.data),
 };

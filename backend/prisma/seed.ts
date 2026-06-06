@@ -199,11 +199,15 @@ async function main() {
   const catElectronicsId = "e1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d";
   const catOfficeSuppliesId = "f2c3d4e5-f67a-8b9c-0d1e-2f3a4b5c6d7e";
   const catRawMaterialsId = "a3b4c5d6-e7f8-9a0b-1c2d-3e4f5a6b7c8d";
+  const catFurnitureId = "f2c3d4e5-f67a-8b9c-0d1e-2f3a4b5c6d7f";
+  const catLogisticsId = "f2c3d4e5-f67a-8b9c-0d1e-2f3a4b5c6d70";
 
   const categories = [
-    { id: catElectronicsId, organization_id: org.id, name: "Electronics & IT", description: "Laptops, servers, peripherals" },
-    { id: catOfficeSuppliesId, organization_id: org.id, name: "Office Supplies", description: "Stationery, desks, chairs" },
+    { id: catElectronicsId, organization_id: org.id, name: "IT Hardware", description: "Laptops, servers, peripherals" },
+    { id: catOfficeSuppliesId, organization_id: org.id, name: "Stationery", description: "Stationery, desks, chairs" },
     { id: catRawMaterialsId, organization_id: org.id, name: "Raw Materials", description: "Metal parts, components, wiring" },
+    { id: catFurnitureId, organization_id: org.id, name: "Furniture", description: "Desks, office chairs, tables" },
+    { id: catLogisticsId, organization_id: org.id, name: "Logistics", description: "Courier and transport services" },
   ];
 
   for (const cat of categories) {
@@ -278,6 +282,9 @@ async function main() {
   console.log("🏭 Seeding Vendors...");
   const vendorApexId = "262e8d2d-ef87-42a6-a489-266c272d90cd";
   const vendorOfficeId = "dc252dee-a9da-46c8-b1a2-b9623f60d849";
+  const vendorTechCoreId = "1a2b3c4d-5e6f-7a8b-9c0d-1e2f3a4b5c6d";
+  const vendorInfraSuppliesId = "2b3c4d5e-6f7a-8b9c-0d1e-2f3a4b5c6d7e";
+  const vendorFastLogId = "3c4d5e6f-7a8b-9c0d-1e2f-3a4b5c6d7e8f";
 
   await prisma.vendors.create({
     data: {
@@ -314,6 +321,81 @@ async function main() {
       created_by: managerId,
     },
   });
+
+  await prisma.vendors.create({
+    data: {
+      id: vendorTechCoreId,
+      organization_id: org.id,
+      category_id: catElectronicsId,
+      company_name: "TechCore Ltd",
+      gst_number: "29TCHCORE1234A",
+      contact_person: "Steve Jobs",
+      email: "steve@techcore.com",
+      phone: "+91 9900113344",
+      address: "Silicon Valley, Bangalore",
+      status: "active",
+      rating: "4.7",
+      onboarding_completed: true,
+      created_by: managerId,
+    },
+  });
+
+  await prisma.vendors.create({
+    data: {
+      id: vendorInfraSuppliesId,
+      organization_id: org.id,
+      category_id: catFurnitureId,
+      company_name: "Infra Supplies",
+      gst_number: "29INFRAS1234B",
+      contact_person: "Bob Builder",
+      email: "bob@infrasupplies.com",
+      phone: "+91 9900114455",
+      address: "Industrial Area, Pune",
+      status: "active",
+      rating: "4.5",
+      onboarding_completed: true,
+      created_by: managerId,
+    },
+  });
+
+  await prisma.vendors.create({
+    data: {
+      id: vendorFastLogId,
+      organization_id: org.id,
+      category_id: catLogisticsId,
+      company_name: "FastLog",
+      gst_number: "29FASTLOG1234C",
+      contact_person: "Barry Allen",
+      email: "barry@fastlog.com",
+      phone: "+91 9900115566",
+      address: "Logistics Hub, Chennai",
+      status: "active",
+      rating: "4.6",
+      onboarding_completed: true,
+      created_by: managerId,
+    },
+  });
+
+  // Seed 24 active dummy vendors to match the 28 active vendors count
+  console.log("🏭 Seeding 24 dummy active vendors...");
+  for (let i = 1; i <= 24; i++) {
+    await prisma.vendors.create({
+      data: {
+        organization_id: org.id,
+        category_id: catOfficeSuppliesId,
+        company_name: `Dummy Vendor ${i}`,
+        gst_number: `29DUMMYV${1000 + i}Z`,
+        contact_person: `Contact Person ${i}`,
+        email: `vendor${i}@dummy.com`,
+        phone: `+91 9900000${10 + i}`,
+        address: `Address ${i}, City`,
+        status: "active",
+        rating: "4.0",
+        onboarding_completed: true,
+        created_by: managerId,
+      },
+    });
+  }
 
   // 11. Create Vendor User (linked to Apex Technology)
   console.log("👤 Seeding Vendor User...");
@@ -644,6 +726,250 @@ async function main() {
       new_value: { status: "accepted" },
     },
   });
+
+  console.log("📦 Seeding extra Purchase Orders for reporting...");
+  
+  // TechCore Ltd POs (₹4,20,000 spend in May 2026, 6 POs total)
+  const techCorePOData = [
+    { amount: 220000, date: new Date("2026-05-10T12:00:00Z"), status: "completed" },
+    { amount: 200000, date: new Date("2026-05-15T12:00:00Z"), status: "completed" },
+    { amount: 60000,  date: new Date("2026-04-10T12:00:00Z"), status: "completed" },
+    { amount: 50000,  date: new Date("2026-03-15T12:00:00Z"), status: "completed" },
+    { amount: 80000,  date: new Date("2026-02-20T12:00:00Z"), status: "completed" },
+    { amount: 70000,  date: new Date("2026-01-25T12:00:00Z"), status: "completed" },
+  ];
+
+  for (let i = 0; i < techCorePOData.length; i++) {
+    const poData = techCorePOData[i];
+    const poNumber = `PO-TECH-${2000 + i}`;
+    const pOrder = await prisma.purchase_orders.create({
+      data: {
+        organization_id: org.id,
+        po_number: poNumber,
+        vendor_id: vendorTechCoreId,
+        subtotal: poData.amount / 1.18,
+        tax_amount: (poData.amount / 1.18) * 0.18,
+        total_amount: poData.amount,
+        status: poData.status as any,
+        delivery_date: poData.date,
+        created_at: poData.date,
+        generated_by: managerId,
+        shipping_address: "Tech Hub, Bangalore",
+        billing_address: "Finance Dept, Bangalore",
+      }
+    });
+
+    await prisma.purchase_order_items.create({
+      data: {
+        purchase_order_id: pOrder.id,
+        category_id: catElectronicsId,
+        item_name: "Hardware Equipment & Services",
+        quantity: 1,
+        unit_price: poData.amount / 1.18,
+        total_price: poData.amount,
+        received_quantity: poData.status === "completed" ? 1 : 0,
+      }
+    });
+
+    await prisma.invoices.create({
+      data: {
+        organization_id: org.id,
+        invoice_number: `INV-TECH-${2000 + i}`,
+        purchase_order_id: pOrder.id,
+        vendor_id: vendorTechCoreId,
+        subtotal: poData.amount / 1.18,
+        grand_total: poData.amount,
+        status: "paid",
+        invoice_date: poData.date,
+        due_date: new Date(poData.date.getTime() + 30 * 24 * 60 * 60 * 1000),
+      }
+    });
+  }
+
+  // Infra Supplies POs (₹3,10,000 spend in May 2026, 4 POs total)
+  const infraPOData = [
+    { amount: 310000, date: new Date("2026-05-12T12:00:00Z"), status: "completed" },
+    { amount: 100000, date: new Date("2026-04-18T12:00:00Z"), status: "completed" },
+    { amount: 120000, date: new Date("2026-03-22T12:00:00Z"), status: "completed" },
+    { amount: 90000,  date: new Date("2026-02-14T12:00:00Z"), status: "completed" },
+  ];
+
+  for (let i = 0; i < infraPOData.length; i++) {
+    const poData = infraPOData[i];
+    const poNumber = `PO-INFRA-${3000 + i}`;
+    const pOrder = await prisma.purchase_orders.create({
+      data: {
+        organization_id: org.id,
+        po_number: poNumber,
+        vendor_id: vendorInfraSuppliesId,
+        subtotal: poData.amount / 1.18,
+        tax_amount: (poData.amount / 1.18) * 0.18,
+        total_amount: poData.amount,
+        status: poData.status as any,
+        delivery_date: poData.date,
+        created_at: poData.date,
+        generated_by: managerId,
+        shipping_address: "Admin Block, Bangalore",
+        billing_address: "Finance Dept, Bangalore",
+      }
+    });
+
+    await prisma.purchase_order_items.create({
+      data: {
+        purchase_order_id: pOrder.id,
+        category_id: catFurnitureId,
+        item_name: "Office Furniture Set",
+        quantity: 1,
+        unit_price: poData.amount / 1.18,
+        total_price: poData.amount,
+        received_quantity: poData.status === "completed" ? 1 : 0,
+      }
+    });
+
+    await prisma.invoices.create({
+      data: {
+        organization_id: org.id,
+        invoice_number: `INV-INFRA-${3000 + i}`,
+        purchase_order_id: pOrder.id,
+        vendor_id: vendorInfraSuppliesId,
+        subtotal: poData.amount / 1.18,
+        grand_total: poData.amount,
+        status: "paid",
+        invoice_date: poData.date,
+        due_date: new Date(poData.date.getTime() + 30 * 24 * 60 * 60 * 1000),
+      }
+    });
+  }
+
+  // FastLog POs (₹1,90,000 spend in May 2026, 3 POs total)
+  const fastLogPOData = [
+    { amount: 190000, date: new Date("2026-05-20T12:00:00Z"), status: "completed" },
+    { amount: 80000,  date: new Date("2026-04-25T12:00:00Z"), status: "completed" },
+    { amount: 90000,  date: new Date("2026-03-30T12:00:00Z"), status: "completed" },
+  ];
+
+  for (let i = 0; i < fastLogPOData.length; i++) {
+    const poData = fastLogPOData[i];
+    const poNumber = `PO-FAST-${4000 + i}`;
+    const pOrder = await prisma.purchase_orders.create({
+      data: {
+        organization_id: org.id,
+        po_number: poNumber,
+        vendor_id: vendorFastLogId,
+        subtotal: poData.amount / 1.18,
+        tax_amount: (poData.amount / 1.18) * 0.18,
+        total_amount: poData.amount,
+        status: poData.status as any,
+        delivery_date: poData.date,
+        created_at: poData.date,
+        generated_by: managerId,
+        shipping_address: "Warehouse 1, Bangalore",
+        billing_address: "Finance Dept, Bangalore",
+      }
+    });
+
+    await prisma.purchase_order_items.create({
+      data: {
+        purchase_order_id: pOrder.id,
+        category_id: catLogisticsId,
+        item_name: "Logistics and Shipping Services",
+        quantity: 1,
+        unit_price: poData.amount / 1.18,
+        total_price: poData.amount,
+        received_quantity: poData.status === "completed" ? 1 : 0,
+      }
+    });
+
+    await prisma.invoices.create({
+      data: {
+        organization_id: org.id,
+        invoice_number: `INV-FAST-${4000 + i}`,
+        purchase_order_id: pOrder.id,
+        vendor_id: vendorFastLogId,
+        subtotal: poData.amount / 1.18,
+        grand_total: poData.amount,
+        status: "paid",
+        invoice_date: poData.date,
+        due_date: new Date(poData.date.getTime() + 30 * 24 * 60 * 60 * 1000),
+      }
+    });
+  }
+
+  // Office Essentials POs
+  const officePOData = [
+    { amount: 210000, date: new Date("2026-05-08T12:00:00Z"), status: "completed" },
+    { amount: 150000, date: new Date("2026-04-05T12:00:00Z"), status: "completed" },
+    { amount: 90000,  date: new Date("2025-12-15T12:00:00Z"), status: "completed" },
+  ];
+
+  for (let i = 0; i < officePOData.length; i++) {
+    const poData = officePOData[i];
+    const poNumber = `PO-OFFICE-${5000 + i}`;
+    const pOrder = await prisma.purchase_orders.create({
+      data: {
+        organization_id: org.id,
+        po_number: poNumber,
+        vendor_id: vendorOfficeId,
+        subtotal: poData.amount / 1.18,
+        tax_amount: (poData.amount / 1.18) * 0.18,
+        total_amount: poData.amount,
+        status: poData.status as any,
+        delivery_date: poData.date,
+        created_at: poData.date,
+        generated_by: managerId,
+        shipping_address: "HQ Office, Bangalore",
+        billing_address: "Finance Dept, Bangalore",
+      }
+    });
+
+    await prisma.purchase_order_items.create({
+      data: {
+        purchase_order_id: pOrder.id,
+        category_id: catOfficeSuppliesId,
+        item_name: "Consumable Stationery Items",
+        quantity: 1,
+        unit_price: poData.amount / 1.18,
+        total_price: poData.amount,
+        received_quantity: poData.status === "completed" ? 1 : 0,
+      }
+    });
+
+    await prisma.invoices.create({
+      data: {
+        organization_id: org.id,
+        invoice_number: `INV-OFFICE-${5000 + i}`,
+        purchase_order_id: pOrder.id,
+        vendor_id: vendorOfficeId,
+        subtotal: poData.amount / 1.18,
+        grand_total: poData.amount,
+        status: "paid",
+        invoice_date: poData.date,
+        due_date: new Date(poData.date.getTime() + 30 * 24 * 60 * 60 * 1000),
+      }
+    });
+  }
+
+  console.log("📄 Seeding 3 Overdue Invoices...");
+  const overdueInvoices = [
+    { number: "INV-OVERDUE-1", amount: 15000, vendorId: vendorTechCoreId },
+    { number: "INV-OVERDUE-2", amount: 25000, vendorId: vendorInfraSuppliesId },
+    { number: "INV-OVERDUE-3", amount: 35000, vendorId: vendorFastLogId },
+  ];
+
+  for (const inv of overdueInvoices) {
+    await prisma.invoices.create({
+      data: {
+        organization_id: org.id,
+        invoice_number: inv.number,
+        vendor_id: inv.vendorId,
+        subtotal: inv.amount / 1.18,
+        grand_total: inv.amount,
+        status: "pending",
+        invoice_date: new Date(Date.now() - 45 * 24 * 60 * 60 * 1000),
+        due_date: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000), // Due 15 days ago
+      }
+    });
+  }
 
   console.log("=========================================================");
   console.log("🎉 DATABASE RESTARTED AND SEEDED SUCCESSFULLY! 🎉");
