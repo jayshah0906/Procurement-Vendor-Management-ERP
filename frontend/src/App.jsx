@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { ProtectedRoute } from './routes/ProtectedRoute';
+import { ProtectedRoute, ROLES } from './routes/ProtectedRoute';
 
 // Layouts
 import { DashboardLayout } from './components/layout/DashboardLayout';
@@ -13,6 +13,7 @@ import { DashboardPage } from './pages/erp/DashboardPage';
 import { VendorsPage } from './pages/erp/VendorsPage';
 import { RFQsPage } from './pages/erp/RFQsPage';
 import { QuotationsPage } from './pages/erp/QuotationsPage';
+import { QuotationSubmitPage } from './pages/erp/QuotationSubmitPage';
 import { ComparisonPage } from './pages/erp/ComparisonPage';
 import { ApprovalsPage } from './pages/erp/ApprovalsPage';
 import { PurchaseOrdersPage } from './pages/erp/PurchaseOrdersPage';
@@ -32,17 +33,44 @@ function App() {
         <Route path="/erp" element={<ProtectedRoute />}>
           <Route element={<DashboardLayout />}>
             <Route index element={<Navigate to="dashboard" replace />} />
-            
+
+            {/* Dashboard: All authenticated users */}
             <Route path="dashboard" element={<DashboardPage />} />
-            <Route path="vendors" element={<VendorsPage />} />
-            <Route path="rfqs" element={<RFQsPage />} />
-            <Route path="quotations" element={<QuotationsPage />} />
-            <Route path="compare" element={<ComparisonPage />} />
-            <Route path="approvals" element={<ApprovalsPage />} />
-            <Route path="orders" element={<PurchaseOrdersPage />} />
-            <Route path="invoices" element={<InvoicesPage />} />
-            <Route path="logs" element={<ActivityLogsPage />} />
-            <Route path="reports" element={<ReportsPage />} />
+
+            {/* Vendor Management & RFQs & Purchase Orders: Procurement Manager & Officer only */}
+            <Route element={<ProtectedRoute allowedRoles={[ROLES.PROCUREMENT_MANAGER, ROLES.PROCUREMENT_OFFICER]} />}>
+              <Route path="vendors" element={<VendorsPage />} />
+              <Route path="rfqs" element={<RFQsPage />} />
+              <Route path="compare" element={<ComparisonPage />} />
+              <Route path="orders" element={<PurchaseOrdersPage />} />
+            </Route>
+
+            {/* Quotations: Procurement Manager, Officer, Vendor */}
+            <Route element={<ProtectedRoute allowedRoles={[ROLES.PROCUREMENT_MANAGER, ROLES.PROCUREMENT_OFFICER, ROLES.VENDOR]} />}>
+              <Route path="quotations" element={<QuotationsPage />} />
+            </Route>
+
+            {/* Submit Bid: Vendor only (or Manager for testing) */}
+            <Route element={<ProtectedRoute allowedRoles={[ROLES.PROCUREMENT_MANAGER, ROLES.VENDOR]} />}>
+              <Route path="quotations/submit/:rfqId" element={<QuotationSubmitPage />} />
+            </Route>
+
+            {/* Approvals: Procurement Manager, Approver */}
+            <Route element={<ProtectedRoute allowedRoles={[ROLES.PROCUREMENT_MANAGER, ROLES.APPROVER]} />}>
+              <Route path="approvals" element={<ApprovalsPage />} />
+              <Route path="approvals/:workflowId" element={<ApprovalsPage />} />
+            </Route>
+
+            {/* Invoices: Procurement Manager, Officer, Vendor */}
+            <Route element={<ProtectedRoute allowedRoles={[ROLES.PROCUREMENT_MANAGER, ROLES.PROCUREMENT_OFFICER, ROLES.VENDOR]} />}>
+              <Route path="invoices" element={<InvoicesPage />} />
+            </Route>
+
+            {/* Reports & Audit Logs: Procurement Manager only */}
+            <Route element={<ProtectedRoute allowedRoles={[ROLES.PROCUREMENT_MANAGER]} />}>
+              <Route path="reports" element={<ReportsPage />} />
+              <Route path="logs" element={<ActivityLogsPage />} />
+            </Route>
           </Route>
         </Route>
 

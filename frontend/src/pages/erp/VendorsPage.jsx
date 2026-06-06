@@ -1,15 +1,16 @@
 import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getVendors, createVendor } from '../../api/mockApi';
+import { vendorsApi } from '../../api/vendors.api';
+import { masterApi } from '../../api/master.api';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { 
-  useReactTable, 
-  getCoreRowModel, 
+import {
+  useReactTable,
+  getCoreRowModel,
   getPaginationRowModel,
   getSortedRowModel,
-  flexRender 
+  flexRender,
 } from '@tanstack/react-table';
 import { Card, CardContent } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
@@ -19,54 +20,80 @@ import { TableSkeleton } from '../../components/feedback/Skeleton';
 import { Funnel, Plus, CaretUp, CaretDown, X } from '@phosphor-icons/react';
 
 const vendorSchema = z.object({
-  name: z.string().min(2, "Name is required"),
-  category: z.string().min(2, "Category is required"),
-  gst: z.string().min(5, "Valid GST/Tax ID is required"),
+  company_name: z.string().min(2, 'Company name is required'),
+  contact_person: z.string().min(2, 'Contact person is required'),
+  email: z.string().email('Valid email is required'),
+  phone: z.string().min(7, 'Valid phone number is required'),
+  address: z.string().min(5, 'Address is required'),
+  gst_number: z.string().min(5, 'Valid GST/Tax ID is required'),
+  category_id: z.string().min(1, 'Category is required'),
 });
+
+const statusVariant = (status) => {
+  const map = { active: 'blue', pending_approval: 'yellow', inactive: 'gray', blacklisted: 'red' };
+  return map[status] || 'gray';
+};
 
 export const VendorsPage = () => {
   const queryClient = useQueryClient();
-  const { data: vendors, isLoading } = useQuery({ queryKey: ['vendors'], queryFn: getVendors });
   const [sorting, setSorting] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
+  const { data: vendorData, isLoading } = useQuery({
+    queryKey: ['vendors'],
+    queryFn: () => vendorsApi.getVendors(),
+  });
+
+  const { data: categories = [] } = useQuery({
+    queryKey: ['categories'],
+    queryFn: masterApi.getCategories,
+  });
+
+  const vendors = Array.isArray(vendorData) ? vendorData : vendorData?.items ?? [];
+
   const { register, handleSubmit, reset, formState: { errors } } = useForm({
-    resolver: zodResolver(vendorSchema)
+    resolver: zodResolver(vendorSchema),
   });
 
   const mutation = useMutation({
-    mutationFn: createVendor,
+    mutationFn: vendorsApi.createVendor,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['vendors'] });
       setIsModalOpen(false);
       reset();
-    }
+    },
   });
 
   const columns = useMemo(() => [
-    { header: 'ID', accessorKey: 'id' },
-    { header: 'Company Name', accessorKey: 'name' },
-    { header: 'Category', accessorKey: 'category' },
-    { header: 'GST Details', accessorKey: 'gst' },
-    { 
-      header: 'Status', 
+    { header: 'Company Name', accessorKey: 'company_name' },
+    { header: 'Category', accessorFn: (row) => row.category?.name ?? row.category ?? '—' },
+    { header: 'GST Number', accessorKey: 'gst_number' },
+    { header: 'Email', accessorKey: 'email' },
+    {
+      header: 'Status',
       accessorKey: 'status',
       cell: ({ row }) => {
         const status = row.original.status;
-        const color = status === 'Active' ? 'blue' : status === 'Pending' ? 'yellow' : 'gray';
-        return <Badge variant={color}>{status}</Badge>;
-      }
+        return <Badge variant={statusVariant(status)}>{status?.replace('_', ' ')}</Badge>;
+      },
     },
     {
       id: 'actions',
       header: '',
-      cell: () => <button className="text-[var(--color-royal-blue)] hover:underline text-sm font-medium">Edit</button>
-    }
-  ], []);
+      cell: ({ row }) => (
+        <button
+          onClick={() => vendorsApi.patchVendorStatus(row.original.id, 'active').then(() => queryClient.invalidateQueries({ queryKey: ['vendors'] }))}
+          className="text-[var(--color-royal-blue)] hover:underline text-sm font-medium"
+        >
+          Edit
+        </button>
+      ),
+    },
+  ], [queryClient]);
 
   // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable({
-    data: vendors || [],
+    data: vendors,
     columns,
     state: { sorting },
     onSortingChange: setSorting,
@@ -75,9 +102,7 @@ export const VendorsPage = () => {
     getPaginationRowModel: getPaginationRowModel(),
   });
 
-  const onSubmit = (data) => {
-    mutation.mutate(data);
-  };
+  const onSubmit = (data) => mutation.mutate(data);
 
   return (
     <div className="space-y-6">
@@ -94,27 +119,22 @@ export const VendorsPage = () => {
       <Card>
         <CardContent className="p-0">
           {isLoading ? (
-            <div className="p-6">
-              <TableSkeleton rows={6} cols={5} />
-            </div>
+            <div className="p-6"><TableSkeleton rows={6} cols={5} /></div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm">
                 <thead className="bg-gray-50 border-b border-gray-200">
-                  {table.getHeaderGroups().map(headerGroup => (
+                  {table.getHeaderGroups().map((headerGroup) => (
                     <tr key={headerGroup.id}>
-                      {headerGroup.headers.map(header => (
-                        <th 
-                          key={header.id} 
+                      {headerGroup.headers.map((header) => (
+                        <th
+                          key={header.id}
                           className="px-6 py-4 font-semibold text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                           onClick={header.column.getToggleSortingHandler()}
                         >
                           <div className="flex items-center gap-1">
                             {flexRender(header.column.columnDef.header, header.getContext())}
-                            {{
-                              asc: <CaretUp weight="bold" />,
-                              desc: <CaretDown weight="bold" />
-                            }[header.column.getIsSorted()] ?? null}
+                            {{ asc: <CaretUp weight="bold" />, desc: <CaretDown weight="bold" /> }[header.column.getIsSorted()] ?? null}
                           </div>
                         </th>
                       ))}
@@ -122,20 +142,28 @@ export const VendorsPage = () => {
                   ))}
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {table.getRowModel().rows.map(row => (
-                    <tr key={row.id} className="hover:bg-gray-50 transition-colors">
-                      {row.getVisibleCells().map(cell => (
-                        <td key={cell.id} className="px-6 py-4 text-gray-700 whitespace-nowrap">
-                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                        </td>
-                      ))}
+                  {table.getRowModel().rows.length === 0 ? (
+                    <tr>
+                      <td colSpan={columns.length} className="px-6 py-10 text-center text-gray-400 text-sm">
+                        No vendors found. Add your first vendor to get started.
+                      </td>
                     </tr>
-                  ))}
+                  ) : (
+                    table.getRowModel().rows.map((row) => (
+                      <tr key={row.id} className="hover:bg-gray-50 transition-colors">
+                        {row.getVisibleCells().map((cell) => (
+                          <td key={cell.id} className="px-6 py-4 text-gray-700 whitespace-nowrap">
+                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                          </td>
+                        ))}
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
               <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
                 <span className="text-sm text-gray-500">
-                  Showing Page {table.getState().pagination.pageIndex + 1} of {table.getPageCount() || 1}
+                  Page {table.getState().pagination.pageIndex + 1} of {table.getPageCount() || 1}
                 </span>
                 <div className="flex gap-2">
                   <Button variant="outline" size="sm" onClick={() => table.previousPage()} disabled={!table.getCanPreviousPage()}>Previous</Button>
@@ -150,19 +178,44 @@ export const VendorsPage = () => {
       {/* Add Vendor Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden">
             <div className="flex justify-between items-center p-6 border-b border-gray-100">
               <h2 className="text-xl font-bold text-gray-900">Register New Vendor</h2>
               <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-gray-600">
                 <X size={24} />
               </button>
             </div>
-            <form onSubmit={handleSubmit(onSubmit)} className="p-6 space-y-4">
-              <Input label="Company Name" placeholder="Tech Supplies Inc." {...register("name")} error={errors.name?.message} />
-              <Input label="Category" placeholder="e.g. IT Services, Furniture" {...register("category")} error={errors.category?.message} />
-              <Input label="GST / Tax ID" placeholder="GSTIN123..." {...register("gst")} error={errors.gst?.message} />
-              
-              <div className="pt-4 flex justify-end gap-3 border-t border-gray-100 mt-6">
+            <form onSubmit={handleSubmit(onSubmit)} className="p-6 space-y-4 max-h-[75vh] overflow-y-auto">
+              {mutation.isError && (
+                <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm">
+                  {mutation.error?.response?.data?.error || 'Failed to create vendor.'}
+                </div>
+              )}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="col-span-2">
+                  <Input label="Company Name" placeholder="Tech Supplies Inc." {...register('company_name')} error={errors.company_name?.message} />
+                </div>
+                <Input label="Contact Person" placeholder="Jane Smith" {...register('contact_person')} error={errors.contact_person?.message} />
+                <Input label="Email" type="email" placeholder="vendor@example.com" {...register('email')} error={errors.email?.message} />
+                <Input label="Phone" placeholder="+91 98765 43210" {...register('phone')} error={errors.phone?.message} />
+                <Input label="GST / Tax ID" placeholder="GSTIN123..." {...register('gst_number')} error={errors.gst_number?.message} />
+              </div>
+              <Input label="Address" placeholder="123 Main St, City, State" {...register('address')} error={errors.address?.message} />
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
+                <select
+                  {...register('category_id')}
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-royal-blue)] focus:border-transparent"
+                >
+                  <option value="">Select a category</option>
+                  {categories.map((cat) => (
+                    <option key={cat.id} value={cat.id}>{cat.name}</option>
+                  ))}
+                </select>
+                {errors.category_id && <p className="text-red-500 text-xs mt-1">{errors.category_id.message}</p>}
+              </div>
+
+              <div className="pt-4 flex justify-end gap-3 border-t border-gray-100 mt-2">
                 <Button type="button" variant="ghost" onClick={() => setIsModalOpen(false)}>Cancel</Button>
                 <Button type="submit" variant="primary" disabled={mutation.isPending}>
                   {mutation.isPending ? 'Saving...' : 'Register Vendor'}
@@ -172,7 +225,6 @@ export const VendorsPage = () => {
           </div>
         </div>
       )}
-
     </div>
   );
 };

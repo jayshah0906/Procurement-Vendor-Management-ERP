@@ -1,8 +1,26 @@
-import { MagnifyingGlass, Bell, UserCircle } from '@phosphor-icons/react';
+import { MagnifyingGlass, Bell, SignOut } from '@phosphor-icons/react';
 import { useAuthStore } from '../../store/authStore';
+import { authApi } from '../../api/auth.api';
+import { useNavigate } from 'react-router-dom';
 
 export const Topbar = () => {
   const { user, logout } = useAuthStore();
+  const navigate = useNavigate();
+
+  const displayName = user
+    ? `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.email
+    : 'User';
+
+  const handleLogout = async () => {
+    try {
+      await authApi.logout();
+    } catch {
+      // Even if the server-side logout fails, clear local state
+    } finally {
+      logout();
+      navigate('/login');
+    }
+  };
 
   return (
     <header className="h-20 bg-white border-b border-gray-200 flex items-center justify-between px-8 z-10 w-full">
@@ -26,11 +44,15 @@ export const Topbar = () => {
         </button>
         <div className="flex items-center gap-3">
           <div className="text-right hidden md:block">
-            <p className="text-sm font-semibold text-gray-900">{user?.name || 'Jane Doe'}</p>
-            <p className="text-xs text-gray-500">{user?.role || 'Admin'}</p>
+            <p className="text-sm font-semibold text-gray-900">{displayName}</p>
+            <p className="text-xs text-gray-500">{user?.role || ''}</p>
           </div>
-          <button onClick={logout} className="p-1 rounded-full text-gray-400 hover:text-[var(--color-eggplant)] transition-colors">
-            <UserCircle size={36} weight="fill" />
+          <button
+            onClick={handleLogout}
+            title="Sign out"
+            className="p-2 rounded-full text-gray-400 hover:text-[var(--color-eggplant)] hover:bg-red-50 transition-colors"
+          >
+            <SignOut size={22} />
           </button>
         </div>
       </div>

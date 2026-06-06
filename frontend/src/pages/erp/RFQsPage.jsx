@@ -1,129 +1,237 @@
+import { useState } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { createRFQ } from '../../api/mockApi';
-import { useNavigate } from 'react-router-dom';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { rfqsApi } from '../../api/rfqs.api';
+import { masterApi } from '../../api/master.api';
 import { Card, CardContent, CardHeader } from '../../components/ui/Card';
+import { Badge } from '../../components/ui/Badge';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
-import { Plus, Trash } from '@phosphor-icons/react';
+import { TableSkeleton } from '../../components/feedback/Skeleton';
+import { Plus, Trash, X, FileText } from '@phosphor-icons/react';
 
 const rfqSchema = z.object({
-  title: z.string().min(3, "Title is required"),
-  deadline: z.string().min(1, "Deadline is required"),
+  title: z.string().min(3, 'Title is required'),
+  description: z.string().min(5, 'Description is required'),
+  category_id: z.string().min(1, 'Category is required'),
+  deadline: z.string().min(1, 'Deadline is required'),
   items: z.array(z.object({
-    name: z.string().min(1, "Item name is required"),
-    quantity: z.number().min(1, "Must be at least 1"),
-  })).min(1, "At least one item is required"),
+    item_name: z.string().min(1, 'Item name is required'),
+    description: z.string().optional(),
+    quantity: z.number().min(1, 'Must be at least 1'),
+    unit: z.string().min(1, 'Unit is required'),
+    estimated_unit_price: z.number().min(0, 'Price must be >= 0'),
+  })).min(1, 'At least one item is required'),
 });
+
+const statusVariant = (status) => {
+  const map = { published: 'blue', draft: 'gray', closed: 'red', converted_to_po: 'green', cancelled: 'gray' };
+  return map[status] || 'gray';
+};
 
 export const RFQsPage = () => {
   const queryClient = useQueryClient();
-  const navigate = useNavigate();
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
-  const { register, control, handleSubmit, formState: { errors } } = useForm({
+  const { data: rfqData, isLoading } = useQuery({
+    queryKey: ['rfqs'],
+    queryFn: () => rfqsApi.getRfqs(),
+  });
+
+  const { data: categories = [] } = useQuery({
+    queryKey: ['categories'],
+    queryFn: masterApi.getCategories,
+  });
+
+  const rfqs = Array.isArray(rfqData) ? rfqData : rfqData?.items ?? [];
+
+  const { register, control, handleSubmit, reset, formState: { errors } } = useForm({
     resolver: zodResolver(rfqSchema),
     defaultValues: {
-      items: [{ name: '', quantity: 1 }]
-    }
+      items: [{ item_name: '', description: '', quantity: 1, unit: 'pcs', estimated_unit_price: 0 }],
+    },
   });
 
-  const { fields, append, remove } = useFieldArray({
-    control,
-    name: "items"
-  });
+  const { fields, append, remove } = useFieldArray({ control, name: 'items' });
 
-  const mutation = useMutation({
-    mutationFn: createRFQ,
+  const createMutation = useMutation({
+    mutationFn: (data) => {
+      // Convert local date string to ISO datetime for backend
+      const deadline = new Date(data.deadline).toISOString();
+      return rfqsApi.createRfq({ ...data, deadline });
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['recentRFQs'] });
-      navigate('/erp/dashboard');
-    }
+      queryClient.invalidateQueries({ queryKey: ['rfqs'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard', 'summary'] });
+      setIsModalOpen(false);
+      reset();
+    },
   });
 
-  const onSubmit = (data) => {
-    mutation.mutate(data);
-  };
+  const publishMutation = useMutation({
+    mutationFn: (id) => rfqsApi.patchRfqStatus(id, 'published'),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['rfqs'] }),
+  });
+
+  const onSubmit = (data) => createMutation.mutate(data);
 
   return (
-    <div className="space-y-6 max-w-4xl mx-auto">
-      <h1 className="text-2xl font-bold text-gray-900">Create Request for Quotation (RFQ)</h1>
-      
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <h1 className="text-2xl font-bold text-gray-900">Requests for Quotation</h1>
+        <Button variant="primary" onClick={() => setIsModalOpen(true)}>
+          <Plus size={18} className="mr-2" /> Create RFQ
+        </Button>
+      </div>
+
       <Card>
-        <CardHeader title="RFQ Details" />
-        <CardContent>
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <Input 
-                label="RFQ Title" 
-                placeholder="e.g., Q3 Office Supplies" 
-                {...register("title")} 
-                error={errors.title?.message} 
-              />
-              <Input 
-                label="Submission Deadline" 
-                type="date" 
-                {...register("deadline")} 
-                error={errors.deadline?.message} 
-              />
+        <CardContent className="p-0">
+          {isLoading ? (
+            <div className="p-6"><TableSkeleton rows={5} cols={5} /></div>
+          ) : rfqs.length === 0 ? (
+            <div className="p-12 text-center">
+              <FileText size={48} className="mx-auto text-gray-300 mb-3" />
+              <p className="text-gray-500 font-medium">No RFQs yet</p>
+              <p className="text-sm text-gray-400 mt-1">Create your first RFQ to start receiving vendor quotations.</p>
             </div>
-
-            <div>
-              <div className="flex items-center justify-between mb-4">
-                <h4 className="font-semibold text-gray-700">Line Items</h4>
-                <Button type="button" variant="outline" size="sm" onClick={() => append({ name: '', quantity: 1 })}>
-                  <Plus size={16} className="mr-1" /> Add Item
-                </Button>
-              </div>
-
-              {errors.items?.root?.message && (
-                <p className="text-sm text-red-500 mb-2">{errors.items.root.message}</p>
-              )}
-
-              <div className="space-y-3">
-                {fields.map((item, index) => (
-                  <div key={item.id} className="flex items-start gap-4">
-                    <div className="flex-1">
-                      <Input 
-                        placeholder="Item Description" 
-                        {...register(`items.${index}.name`)} 
-                        error={errors?.items?.[index]?.name?.message}
-                      />
-                    </div>
-                    <div className="w-32">
-                      <Input 
-                        type="number" 
-                        min="1"
-                        {...register(`items.${index}.quantity`, { valueAsNumber: true })} 
-                        error={errors?.items?.[index]?.quantity?.message}
-                      />
-                    </div>
-                    <Button 
-                      type="button" 
-                      variant="ghost" 
-                      className="text-red-500 hover:bg-red-50 hover:text-red-600 mt-1"
-                      onClick={() => remove(index)}
-                      disabled={fields.length === 1}
-                    >
-                      <Trash size={20} />
-                    </Button>
-                  </div>
-                ))}
-              </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm">
+                <thead className="bg-gray-50 border-b border-gray-200">
+                  <tr>
+                    <th className="px-6 py-4 font-semibold text-gray-600 uppercase tracking-wider">Title</th>
+                    <th className="px-6 py-4 font-semibold text-gray-600 uppercase tracking-wider">Category</th>
+                    <th className="px-6 py-4 font-semibold text-gray-600 uppercase tracking-wider">Deadline</th>
+                    <th className="px-6 py-4 font-semibold text-gray-600 uppercase tracking-wider">Status</th>
+                    <th className="px-6 py-4 font-semibold text-gray-600 uppercase tracking-wider">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {rfqs.map((rfq) => (
+                    <tr key={rfq.id} className="hover:bg-gray-50 transition-colors">
+                      <td className="px-6 py-4 text-gray-900 font-medium">{rfq.title}</td>
+                      <td className="px-6 py-4 text-gray-600">{rfq.category?.name ?? '—'}</td>
+                      <td className="px-6 py-4 text-gray-600">
+                        {rfq.deadline ? new Date(rfq.deadline).toLocaleDateString() : '—'}
+                      </td>
+                      <td className="px-6 py-4">
+                        <Badge variant={statusVariant(rfq.status)}>{rfq.status?.replace('_', ' ')}</Badge>
+                      </td>
+                      <td className="px-6 py-4">
+                        {rfq.status === 'draft' && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => publishMutation.mutate(rfq.id)}
+                            disabled={publishMutation.isPending}
+                          >
+                            Publish
+                          </Button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-
-            <div className="pt-4 border-t border-gray-100 flex justify-end gap-3">
-              <Button type="button" variant="ghost" onClick={() => navigate('/erp/dashboard')}>Cancel</Button>
-              <Button type="submit" variant="primary" disabled={mutation.isPending}>
-                {mutation.isPending ? 'Publishing...' : 'Publish RFQ'}
-              </Button>
-            </div>
-
-          </form>
+          )}
         </CardContent>
       </Card>
+
+      {/* Create RFQ Modal */}
+      {isModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden">
+            <div className="flex justify-between items-center p-6 border-b border-gray-100">
+              <h2 className="text-xl font-bold text-gray-900">Create Request for Quotation</h2>
+              <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-gray-600">
+                <X size={24} />
+              </button>
+            </div>
+            <form onSubmit={handleSubmit(onSubmit)} className="p-6 space-y-5 max-h-[80vh] overflow-y-auto">
+              {createMutation.isError && (
+                <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm">
+                  {createMutation.error?.response?.data?.error || 'Failed to create RFQ.'}
+                </div>
+              )}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div className="col-span-2">
+                  <Input label="RFQ Title" placeholder="e.g. Q3 Office Supplies" {...register('title')} error={errors.title?.message} />
+                </div>
+                <div className="col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                  <textarea
+                    {...register('description')}
+                    rows={2}
+                    placeholder="Describe the procurement requirement..."
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-royal-blue)] resize-none"
+                  />
+                  {errors.description && <p className="text-red-500 text-xs mt-1">{errors.description.message}</p>}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
+                  <select
+                    {...register('category_id')}
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-royal-blue)]"
+                  >
+                    <option value="">Select category</option>
+                    {categories.map((cat) => (
+                      <option key={cat.id} value={cat.id}>{cat.name}</option>
+                    ))}
+                  </select>
+                  {errors.category_id && <p className="text-red-500 text-xs mt-1">{errors.category_id.message}</p>}
+                </div>
+                <Input label="Submission Deadline" type="date" {...register('deadline')} error={errors.deadline?.message} />
+              </div>
+
+              {/* Line Items */}
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="font-semibold text-gray-700">Line Items</h4>
+                  <Button type="button" variant="outline" size="sm"
+                    onClick={() => append({ item_name: '', description: '', quantity: 1, unit: 'pcs', estimated_unit_price: 0 })}>
+                    <Plus size={16} className="mr-1" /> Add Item
+                  </Button>
+                </div>
+                {errors.items?.root && <p className="text-sm text-red-500 mb-2">{errors.items.root.message}</p>}
+                <div className="space-y-3">
+                  {fields.map((item, index) => (
+                    <div key={item.id} className="grid grid-cols-12 gap-2 items-start">
+                      <div className="col-span-4">
+                        <Input placeholder="Item name" {...register(`items.${index}.item_name`)} error={errors?.items?.[index]?.item_name?.message} />
+                      </div>
+                      <div className="col-span-2">
+                        <Input type="number" min="1" placeholder="Qty" {...register(`items.${index}.quantity`, { valueAsNumber: true })} error={errors?.items?.[index]?.quantity?.message} />
+                      </div>
+                      <div className="col-span-2">
+                        <Input placeholder="Unit" {...register(`items.${index}.unit`)} error={errors?.items?.[index]?.unit?.message} />
+                      </div>
+                      <div className="col-span-3">
+                        <Input type="number" step="0.01" min="0" placeholder="Est. price" {...register(`items.${index}.estimated_unit_price`, { valueAsNumber: true })} error={errors?.items?.[index]?.estimated_unit_price?.message} />
+                      </div>
+                      <div className="col-span-1 pt-1">
+                        <Button type="button" variant="ghost" className="text-red-500 hover:bg-red-50 p-2"
+                          onClick={() => remove(index)} disabled={fields.length === 1}>
+                          <Trash size={18} />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="pt-4 flex justify-end gap-3 border-t border-gray-100">
+                <Button type="button" variant="ghost" onClick={() => setIsModalOpen(false)}>Cancel</Button>
+                <Button type="submit" variant="primary" disabled={createMutation.isPending}>
+                  {createMutation.isPending ? 'Creating...' : 'Create RFQ (Draft)'}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

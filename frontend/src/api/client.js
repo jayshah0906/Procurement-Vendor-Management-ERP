@@ -9,15 +9,12 @@ const client = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  // Simulate timeout for realistic mock delay during dev if no backend is present
-  timeout: 10000, 
+  timeout: 15000,
 });
 
-// Request Interceptor: Automatically inject JWT from local storage
+// Request Interceptor: Automatically inject JWT from localStorage
 client.interceptors.request.use(
   (config) => {
-    // In a real app, you might use Zustand to get this, but localStorage is safe here
-    // as we avoid cyclical dependencies between axios and zustand.
     const token = localStorage.getItem('accessToken');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
@@ -27,21 +24,79 @@ client.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Response Interceptor: Handle 401s (e.g., attempt refresh token or logout)
+// Track whether we are currently refreshing to avoid infinite loops
+let isRefreshing = false;
+let failedQueue = [];
+
+const processQueue = (error, token = null) => {
+  failedQueue.forEach((prom) => {
+    if (error) {
+      prom.reject(error);
+    } else {
+      prom.resolve(token);
+    }
+  });
+  failedQueue = [];
+};
+
+const forceLogout = () => {
+  localStorage.removeItem('accessToken');
+  localStorage.removeItem('refreshToken');
+  // Clear the persisted Zustand state too
+  localStorage.removeItem('auth-storage');
+  window.location.href = '/login';
+};
+
+// Response Interceptor: On 401, attempt refresh. On failure, force logout.
 client.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
-    
+
     if (error.response?.status === 401 && !originalRequest._retry) {
+      if (isRefreshing) {
+        // Queue this request until the refresh completes
+        return new Promise((resolve, reject) => {
+          failedQueue.push({ resolve, reject });
+        })
+          .then((token) => {
+            originalRequest.headers.Authorization = `Bearer ${token}`;
+            return client(originalRequest);
+          })
+          .catch((err) => Promise.reject(err));
+      }
+
       originalRequest._retry = true;
-      // Handle refresh token logic here in the future
-      console.warn('Unauthorized: Logging out or refreshing token...');
-      
-      // Example clear action
-      // localStorage.removeItem('accessToken');
-      // window.location.href = '/login';
+      isRefreshing = true;
+
+      const refreshToken = localStorage.getItem('refreshToken');
+
+      if (!refreshToken) {
+        isRefreshing = false;
+        forceLogout();
+        return Promise.reject(error);
+      }
+
+      try {
+        const response = await axios.post(`${env.API_URL}/auth/refresh`, {
+          refresh_token: refreshToken,
+        });
+
+        const { token } = response.data.data;
+        localStorage.setItem('accessToken', token);
+
+        processQueue(null, token);
+        originalRequest.headers.Authorization = `Bearer ${token}`;
+        return client(originalRequest);
+      } catch (refreshError) {
+        processQueue(refreshError, null);
+        forceLogout();
+        return Promise.reject(refreshError);
+      } finally {
+        isRefreshing = false;
+      }
     }
+
     return Promise.reject(error);
   }
 );

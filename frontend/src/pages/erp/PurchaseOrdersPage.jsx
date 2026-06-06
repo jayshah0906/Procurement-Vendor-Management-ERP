@@ -1,76 +1,116 @@
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
+import { purchaseOrdersApi } from '../../api/purchaseOrders.api';
 import { Card, CardContent } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
-import { DownloadSimple, Printer, PaperPlaneRight } from '@phosphor-icons/react';
+import { Badge } from '../../components/ui/Badge';
+import { TableSkeleton } from '../../components/feedback/Skeleton';
+import { ShoppingCart, PaperPlaneRight } from '@phosphor-icons/react';
+
+const statusVariant = (status) => {
+  const map = {
+    generated: 'yellow',
+    sent: 'blue',
+    accepted: 'green',
+    rejected: 'red',
+    completed: 'green',
+    cancelled: 'gray',
+  };
+  return map[status] || 'gray';
+};
+
+const fmt = (n) =>
+  n != null ? Number(n).toLocaleString('en-IN', { style: 'currency', currency: 'INR' }) : '—';
 
 export const PurchaseOrdersPage = () => {
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+
+  const { data: poData, isLoading } = useQuery({
+    queryKey: ['purchase-orders'],
+    queryFn: () => purchaseOrdersApi.getPurchaseOrders(),
+  });
+
+  const pos = Array.isArray(poData) ? poData : poData?.items ?? [];
+
+  const sendMutation = useMutation({
+    mutationFn: (id) => purchaseOrdersApi.patchPurchaseOrderStatus(id, 'sent'),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['purchase-orders'] }),
+  });
+
   return (
-    <div className="space-y-6 max-w-4xl mx-auto">
+    <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold text-gray-900">Purchase Order Details</h1>
-        <div className="flex gap-2">
-          <Button variant="outline"><Printer size={18} className="mr-2" /> Print</Button>
-          <Button variant="outline"><DownloadSimple size={18} className="mr-2" /> PDF</Button>
-          <Button variant="primary"><PaperPlaneRight size={18} className="mr-2" /> Send to Vendor</Button>
-        </div>
+        <h1 className="text-2xl font-bold text-gray-900">Purchase Orders</h1>
       </div>
 
-      <Card className="bg-white">
-        <CardContent className="p-10">
-          <div className="flex justify-between items-start border-b border-gray-200 pb-8 mb-8">
-            <div>
-              <div className="flex items-center gap-2 font-bold text-2xl text-[var(--color-royal-blue)] mb-2">
-                <span className="text-3xl">∞</span> VendorBridge
-              </div>
-              <p className="text-gray-500 text-sm">123 Business Avenue<br/>Tech City, TC 10010<br/>contact@vendorbridge.com</p>
+      <Card>
+        <CardContent className="p-0">
+          {isLoading ? (
+            <div className="p-6"><TableSkeleton rows={5} cols={5} /></div>
+          ) : pos.length === 0 ? (
+            <div className="p-12 text-center">
+              <ShoppingCart size={48} className="mx-auto text-gray-300 mb-3" />
+              <p className="text-gray-500 font-medium">No purchase orders yet</p>
+              <p className="text-sm text-gray-400 mt-1">
+                Purchase orders are generated automatically when a quotation is approved.
+              </p>
             </div>
-            <div className="text-right">
-              <h2 className="text-3xl font-bold text-gray-900 mb-2">PURCHASE ORDER</h2>
-              <p className="text-gray-600 font-medium">PO Number: <span className="text-gray-900">PO-2026-045</span></p>
-              <p className="text-gray-600 font-medium">Date: <span className="text-gray-900">June 12, 2026</span></p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm">
+                <thead className="bg-gray-50 border-b border-gray-200">
+                  <tr>
+                    <th className="px-6 py-4 font-semibold text-gray-600 uppercase tracking-wider">PO Number</th>
+                    <th className="px-6 py-4 font-semibold text-gray-600 uppercase tracking-wider">Vendor</th>
+                    <th className="px-6 py-4 font-semibold text-gray-600 uppercase tracking-wider">Total Amount</th>
+                    <th className="px-6 py-4 font-semibold text-gray-600 uppercase tracking-wider">Date</th>
+                    <th className="px-6 py-4 font-semibold text-gray-600 uppercase tracking-wider">Status</th>
+                    <th className="px-6 py-4 font-semibold text-gray-600 uppercase tracking-wider">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {pos.map((po) => (
+                    <tr key={po.id} className="hover:bg-gray-50 transition-colors">
+                      <td className="px-6 py-4 text-gray-900 font-medium font-mono text-xs">
+                        {po.po_number || po.id.slice(0, 8)}
+                      </td>
+                      <td className="px-6 py-4 text-gray-700">
+                        {po.vendor?.company_name ?? '—'}
+                      </td>
+                      <td className="px-6 py-4 text-gray-900 font-bold">{fmt(po.total_amount)}</td>
+                      <td className="px-6 py-4 text-gray-600">
+                        {po.created_at ? new Date(po.created_at).toLocaleDateString() : '—'}
+                      </td>
+                      <td className="px-6 py-4">
+                        <Badge variant={statusVariant(po.status)}>{po.status?.replace('_', ' ')}</Badge>
+                      </td>
+                      <td className="px-6 py-4 flex gap-2">
+                        {po.status === 'generated' && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => sendMutation.mutate(po.id)}
+                            disabled={sendMutation.isPending}
+                          >
+                            <PaperPlaneRight size={16} className="mr-1" /> Send to Vendor
+                          </Button>
+                        )}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-[var(--color-royal-blue)]"
+                          onClick={() => navigate(`/erp/orders/${po.id}`)}
+                        >
+                          View
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-12 mb-8">
-            <div>
-              <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Vendor To:</h3>
-              <p className="font-semibold text-gray-900">Global Electronics</p>
-              <p className="text-gray-600 text-sm">456 Silicon Road<br/>Hardware Park, HP 20020<br/>sales@globalelectronics.com</p>
-            </div>
-            <div>
-              <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Ship To:</h3>
-              <p className="font-semibold text-gray-900">VendorBridge HQ</p>
-              <p className="text-gray-600 text-sm">123 Business Avenue<br/>Tech City, TC 10010<br/>Attn: Engineering Dept</p>
-            </div>
-          </div>
-
-          <table className="w-full mb-8">
-            <thead className="bg-gray-50 border-y border-gray-200">
-              <tr>
-                <th className="py-3 px-4 text-left text-xs font-bold text-gray-500 uppercase">Item Description</th>
-                <th className="py-3 px-4 text-center text-xs font-bold text-gray-500 uppercase">Qty</th>
-                <th className="py-3 px-4 text-right text-xs font-bold text-gray-500 uppercase">Unit Price</th>
-                <th className="py-3 px-4 text-right text-xs font-bold text-gray-500 uppercase">Amount</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              <tr>
-                <td className="py-4 px-4 text-gray-900">High-Performance Developer Laptops (16GB RAM, 512GB SSD)</td>
-                <td className="py-4 px-4 text-center text-gray-700">50</td>
-                <td className="py-4 px-4 text-right text-gray-700">$850.00</td>
-                <td className="py-4 px-4 text-right text-gray-900 font-medium">$42,500.00</td>
-              </tr>
-            </tbody>
-          </table>
-
-          <div className="flex justify-end">
-            <div className="w-64 space-y-3 text-sm">
-              <div className="flex justify-between text-gray-600"><span>Subtotal:</span> <span>$42,500.00</span></div>
-              <div className="flex justify-between text-gray-600"><span>Tax (0%):</span> <span>$0.00</span></div>
-              <div className="flex justify-between font-bold text-lg text-gray-900 pt-3 border-t border-gray-200">
-                <span>Total:</span> <span>$42,500.00</span>
-              </div>
-            </div>
-          </div>
+          )}
         </CardContent>
       </Card>
     </div>

@@ -1,6 +1,14 @@
 import { Navigate, Outlet } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 
+// Exact role names as returned by the backend JWT payload
+export const ROLES = {
+  PROCUREMENT_MANAGER: 'Procurement Manager',
+  PROCUREMENT_OFFICER: 'Procurement Officer',
+  VENDOR: 'Vendor',
+  APPROVER: 'Approver',
+};
+
 export const ProtectedRoute = ({ allowedRoles = [] }) => {
   const { user, isAuthenticated } = useAuthStore();
 
@@ -9,7 +17,7 @@ export const ProtectedRoute = ({ allowedRoles = [] }) => {
   }
 
   if (allowedRoles.length > 0 && !allowedRoles.includes(user?.role)) {
-    // If user role is not allowed, redirect to a default safe page
+    // Redirect to dashboard if role is not permitted
     return <Navigate to="/erp/dashboard" replace />;
   }
 
