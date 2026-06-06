@@ -1,0 +1,421 @@
+# ✅ Final Production-Ready REST API Specification
+# VendorBridge ERP (Unified Users Model)
+
+---
+
+## API Design Rules
+
+- Base URL: /api/v1
+- Authentication: JWT Bearer Token
+- JWT Claims:
+
+json {   "user_id": "uuid",   "organization_id": "uuid",   "role": "Procurement Manager",   "vendor_id": "vendor-uuid" } 
+
+- All responses follow:
+
+json {   "success": true,   "data": {},   "meta": {} } 
+
+- Vendor users can only access records belonging to their own vendor_id
+- vendor_id must always be derived from JWT, never accepted from vendor requests
+- All mutations are audit logged
+
+---
+
+# 1. Auth & Profile
+
+## POST /auth/login
+
+json {   "email": "vendor@example.com",   "password": "password123" } 
+
+Response:
+
+json {   "success": true,   "data": {     "token": "jwt-token",     "refresh_token": "refresh-token",     "user": {       "id": "uuid",       "first_name": "Rajesh",       "last_name": "Kumar",       "email": "vendor@example.com",       "role": "Vendor",       "organization_id": "org-uuid",       "vendor_id": "vendor-uuid",       "is_vendor": true,       "permissions": [         "rfq.view",         "quotation.submit"       ]     }   } } 
+
+## POST /auth/refresh
+
+Generate new access token.
+
+## POST /auth/logout
+
+Invalidate current session.
+
+## GET /me
+
+Returns currently authenticated user.
+
+---
+
+# 2. Roles & Permissions
+
+## GET /roles
+
+List all roles.
+
+## GET /roles/:id
+
+Get role details.
+
+## POST /roles
+
+json {   "name": "Procurement Officer",   "permissions": [     "rfq.create",     "quotation.view"   ] } 
+
+## PUT /roles/:id
+
+Update role.
+
+## DELETE /roles/:id
+
+Deactivate role.
+
+## GET /permissions
+
+List all available permissions.
+
+---
+
+# 3. Users (Internal + Vendor Users)
+
+## POST /users
+
+### Internal User
+
+json {   "first_name": "Amit",   "last_name": "Sharma",   "email": "amit@company.com",   "role_id": "role-uuid",   "phone": "9876543210" } 
+
+### Vendor User
+
+json {   "first_name": "Priya",   "last_name": "Verma",   "email": "priya@vendor.com",   "role_id": "vendor-role-uuid",   "vendor_id": "vendor-uuid",   "phone": "9123456789" } 
+
+## GET /users
+
+Filters:
+
+text ?role_id= ?vendor_id= ?status= ?page= &limit= 
+
+## GET /users/:id
+
+## PUT /users/:id
+
+## PATCH /users/:id/status
+
+json {   "is_active": false } 
+
+---
+
+# 4. Vendors
+
+## POST /vendors
+
+json {   "company_name": "ABC Traders",   "gst_number": "29AAACC1234B1Z5",   "contact_person": "Suresh",   "email": "suresh@abctraders.com",   "phone": "9887766554",   "address": "Bangalore",   "category_id": "cat-uuid" } 
+
+## GET /vendors
+
+Filters:
+
+text ?status= ?category_id= ?page= &limit= 
+
+## GET /vendors/:id
+
+Returns vendor profile and performance metrics.
+
+## PUT /vendors/:id
+
+Update vendor information.
+
+## PATCH /vendors/:id/status
+
+json {   "status": "active" } 
+
+Possible values:
+
+text active inactive blacklisted pending 
+
+---
+
+# 5. Master Data
+
+## Categories
+
+GET /categories
+
+POST /categories
+
+PUT /categories/:id
+
+DELETE /categories/:id
+
+## Units
+
+GET /units
+
+Example:
+
+json [   "NOS",   "KG",   "BOX",   "LTR" ] 
+
+## Tax Codes
+
+GET /tax-codes
+
+## Currencies
+
+GET /currencies
+
+---
+
+# 6. RFQ Module
+
+## POST /rfqs
+
+json {   "title": "Office Furniture Procurement",   "description": "...",   "category_id": "cat-uuid",   "deadline": "2026-07-15T18:00:00Z",   "items": [     {       "item_name": "Executive Chair",       "quantity": 50,       "unit": "NOS",       "estimated_unit_price": 4500     }   ] } 
+
+## GET /rfqs
+
+Filters:
+
+text ?status= ?category_id= ?created_by= ?page= 
+
+## GET /rfqs/:id
+
+## PUT /rfqs/:id
+
+## PATCH /rfqs/:id/status
+
+json {   "status": "published" } 
+
+Possible values:
+
+text draft published closed cancelled awarded 
+
+## POST /rfqs/:id/invite
+
+json {   "vendor_ids": [     "vendor-1",     "vendor-2"   ] } 
+
+## GET /rfqs/:id/vendors
+
+List invited vendors.
+
+---
+
+# 7. Quotation Module
+
+## POST /quotations
+
+Vendor users cannot provide vendor_id. Backend derives vendor from JWT.
+
+json {   "rfq_id": "rfq-uuid",   "items": [     {       "rfq_item_id": "item-uuid",       "item_name": "Executive Chair",       "quantity": 50,       "unit_price": 4200,       "delivery_days": 15     }   ],   "subtotal": 210000,   "tax_amount": 37800,   "grand_total": 247800,   "notes": "GST Included" } 
+
+## GET /quotations
+
+Filters:
+
+text ?rfq_id= ?vendor_id= ?status= 
+
+## GET /quotations/:id
+
+## PUT /quotations/:id
+
+Allowed before submission.
+
+## PATCH /quotations/:id/status
+
+json {   "status": "submitted" } 
+
+Possible values:
+
+text draft submitted under_review approved rejected awarded 
+
+---
+
+# 8. Approval Engine
+
+## POST /approvals/initiate
+
+json {   "entity_type": "quotation",   "entity_id": "quotation-uuid",   "approvers": [     {       "approver_id": "user1",       "level_no": 1     },     {       "approver_id": "user2",       "level_no": 2     }   ] } 
+
+## GET /approvals/:workflow_id
+
+## POST /approvals/:workflow_id/steps/:step_id/action
+
+json {   "action": "approve",   "remarks": "Looks good" } 
+
+Actions:
+
+text approve reject request_changes 
+
+---
+
+# 9. Purchase Orders
+
+## POST /purchase-orders
+
+json {   "quotation_id": "quotation-uuid",   "delivery_date": "2026-08-10",   "shipping_address": "...",   "billing_address": "...",   "terms": "Payment within 30 days" } 
+
+## GET /purchase-orders
+
+Filters:
+
+text ?vendor_id= ?status= 
+
+## GET /purchase-orders/:id
+
+## PATCH /purchase-orders/:id/status
+
+json {   "status": "approved" } 
+
+Possible values:
+
+text draft approved sent partially_received received closed cancelled 
+
+## POST /purchase-orders/:id/receipts
+
+json {   "items": [     {       "item_id": "poi-uuid",       "received_quantity": 30     }   ] } 
+
+## GET /purchase-orders/:id/receipts
+
+List all receipts.
+
+---
+
+# 10. Invoices
+
+## POST /invoices
+
+json {   "purchase_order_id": "po-uuid",   "invoice_date": "2026-07-20",   "due_date": "2026-08-19",   "subtotal": 247800,   "cgst": 0,   "sgst": 22302,   "igst": 0,   "grand_total": 270102 } 
+
+## GET /invoices
+
+Filters:
+
+text ?status= ?vendor_id= 
+
+## GET /invoices/:id
+
+## PATCH /invoices/:id/status
+
+json {   "status": "approved" } 
+
+Possible values:
+
+text draft submitted approved paid rejected 
+
+## POST /invoices/:id/mark-paid
+
+json {   "paid_at": "2026-08-05T10:30:00Z" } 
+
+---
+
+# 11. Attachments
+
+## POST /attachments
+
+Multipart Form Data
+
+text entity_type=rfq entity_id=rfq-uuid file=<binary> 
+
+## GET /attachments
+
+text ?entity_type= ?entity_id= 
+
+## DELETE /attachments/:id
+
+---
+
+# 12. Comments
+
+## POST /comments
+
+json {   "entity_type": "quotation",   "entity_id": "quotation-uuid",   "comment": "Please reduce price by 5%" } 
+
+## GET /comments
+
+text ?entity_type= ?entity_id= 
+
+---
+
+# 13. Notifications
+
+## GET /notifications
+
+List recent notifications.
+
+## PATCH /notifications/:id/read
+
+Mark notification as read.
+
+---
+
+# 14. Dashboard APIs
+
+## GET /dashboard/summary
+
+json {   "total_rfqs": 145,   "total_vendors": 36,   "active_purchase_orders": 18,   "pending_approvals": 7 } 
+
+## GET /dashboard/procurement-overview
+
+Procurement metrics.
+
+## GET /dashboard/vendor-overview
+
+Vendor metrics.
+
+---
+
+# 15. Analytics
+
+## GET /analytics/vendor-performance
+
+json {   "success": true,   "data": [     {       "vendor_id": "vendor-uuid",       "company_name": "ABC Traders",       "total_rfqs_invited": 15,       "total_quotations_submitted": 9,       "total_pos_won": 6,       "total_spend": 4580000     }   ] } 
+
+## GET /analytics/spend-analysis
+
+Spend by category/vendor/month.
+
+## GET /analytics/rfq-conversion
+
+RFQ → Quotation → PO conversion metrics.
+
+---
+
+# 16. Audit Logs
+
+## GET /audit-logs
+
+text ?entity_type= ?entity_id= ?user_id= 
+
+## GET /audit-logs/:entity_type/:entity_id
+
+Example timeline:
+
+text RFQ Created Vendor Invited Quotation Submitted Approval Completed PO Generated Invoice Paid 
+
+---
+
+# Final Architecture Summary
+
+Core Modules:
+- Authentication
+- Roles & Permissions
+- Users
+- Vendors
+- Master Data
+- RFQ Management
+- Quotations
+- Approval Workflow
+- Purchase Orders
+- Goods Receipts
+- Invoices
+- Attachments
+- Comments
+- Notifications
+- Dashboard
+- Analytics
+- Audit Logs
+
+Key Design Decisions:
+- Single users table with nullable vendor_id
+- JWT-based tenant and vendor scoping
+- Generic approval engine
+- Generic attachments/comments
+- Audit trail for all business actions
+- Support for partial receipts
+- Enterprise-ready dashboard and analytics layer
+- Fully multi-tenant using organization_id
