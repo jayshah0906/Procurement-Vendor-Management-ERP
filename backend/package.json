@@ -10,7 +10,8 @@
     "prisma:pull": "npx prisma db pull",
     "prisma:generate": "npx prisma generate",
     "seed": "ts-node prisma/seed.ts",
-    "test": "ts-node src/test-api.ts"
+    "test": "ts-node src/test-api.ts",
+    "test:phase5": "ts-node src/test-from-phase5.ts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.8.0",
