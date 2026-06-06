@@ -81,104 +81,103 @@ export const SignupPage = () => {
   };
 
   return (
-    <div className="min-h-screen flex bg-gray-50">
-      {/* Left Branding */}
-      <div className="hidden lg:flex w-1/2 bg-gradient-to-br from-[var(--color-royal-blue)] to-[var(--color-eggplant)] text-white flex-col justify-center px-16 relative overflow-hidden">
-        <div className="absolute top-0 right-0 -translate-y-12 translate-x-1/3 w-96 h-96 bg-white opacity-10 rounded-full blur-3xl" />
-        <div className="absolute bottom-0 left-0 translate-y-1/4 -translate-x-1/4 w-80 h-80 bg-white opacity-5 rounded-full blur-3xl" />
-        <h1 className="text-5xl font-bold mb-6 tracking-tight relative z-10">Join VendorBridge.</h1>
-        <p className="text-xl text-blue-100 max-w-md relative z-10">
-          Create your account and start managing procurement with ease. Whether you're a buyer or a supplier, we've got you covered.
-        </p>
-        <div className="mt-12 relative z-10 space-y-3">
-          {['Role-based access control', 'Real-time notifications', 'Automated approval workflows', 'GST-compliant invoicing'].map((item) => (
-            <div key={item} className="flex items-center gap-3 text-blue-100">
-              <div className="w-1.5 h-1.5 rounded-full bg-blue-300" />
-              <span className="text-sm">{item}</span>
-            </div>
-          ))}
-        </div>
-      </div>
+    <div className="min-h-screen relative flex flex-col items-center justify-center overflow-x-hidden overflow-y-auto py-12">
+      {/* Background Video */}
+      <video
+        autoPlay
+        loop
+        muted
+        playsInline
+        className="fixed inset-0 w-full h-full object-cover z-0"
+      >
+        <source src="/background-video.mp4" type="video/mp4" />
+      </video>
 
-      {/* Right Form */}
-      <div className="w-full lg:w-1/2 flex items-center justify-center p-8 overflow-y-auto">
-        <div className="w-full max-w-md">
-          <Link to="/login" className="inline-flex items-center gap-2 text-sm text-gray-500 hover:text-[var(--color-royal-blue)] mb-6 transition-colors">
+      {/* Dark Overlay */}
+      <div className="fixed inset-0 bg-black/60 z-0"></div>
+
+      {/* Centered Content */}
+      <div className="relative z-10 w-full max-w-xl px-4 flex flex-col items-center">
+        {/* Aesthetic Site Name */}
+        <div className="mb-6 text-center drop-shadow-2xl mt-4">
+          <div className="flex items-center justify-center gap-3 font-extrabold text-5xl text-white tracking-tight mb-2">
+            <span className="text-6xl bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-400">∞</span> VendorBridge
+          </div>
+          <p className="text-gray-200 text-lg font-medium tracking-wide">Join Our Network</p>
+        </div>
+
+        <div className="w-full bg-white/95 backdrop-blur-xl p-8 rounded-3xl shadow-[0_16px_48px_0_rgba(0,0,0,0.5)] border border-white/20 mb-12">
+          <Link to="/login" className="inline-flex items-center gap-2 text-sm text-gray-500 hover:text-[var(--color-royal-blue)] mb-4 transition-colors font-semibold">
             <ArrowLeft size={16} /> Back to Login
           </Link>
 
-          <div className="bg-white p-10 rounded-2xl shadow-xl border border-gray-100">
-            <div className="text-center mb-8">
-              <div className="flex items-center justify-center gap-2 font-bold text-2xl text-[var(--color-royal-blue)] mb-4">
-                <span className="text-3xl">∞</span> VendorBridge
-              </div>
-              <h2 className="text-3xl font-bold text-gray-900 mb-2">Create Account</h2>
-              <p className="text-gray-500 text-sm">Choose your role to get started.</p>
-            </div>
+          <div className="text-center mb-6">
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">Create Account</h2>
+            <p className="text-gray-500 text-sm">Choose your role to get started.</p>
+          </div>
 
-            {/* Role Selector */}
-            <div className="grid grid-cols-2 gap-3 mb-6">
-              {ROLE_OPTIONS.map((opt) => (
-                <button
-                  key={opt.value}
-                  type="button"
-                  onClick={() => setValue('role_name', opt.value)}
-                  className={`p-4 rounded-xl border-2 text-left transition-all ${
-                    selectedRole === opt.value
-                      ? 'border-[var(--color-royal-blue)] bg-[var(--color-pale-blue)]'
-                      : 'border-gray-200 hover:border-gray-300 bg-white'
-                  }`}
-                >
-                  <div className={`mb-2 ${selectedRole === opt.value ? 'text-[var(--color-royal-blue)]' : 'text-gray-400'}`}>
-                    {opt.icon}
-                  </div>
-                  <p className={`font-semibold text-sm ${selectedRole === opt.value ? 'text-[var(--color-royal-blue)]' : 'text-gray-700'}`}>
-                    {opt.label}
-                  </p>
-                  <p className="text-xs text-gray-400 mt-1 leading-tight">{opt.description}</p>
-                </button>
-              ))}
-            </div>
+          {/* Role Selector */}
+          <div className="grid grid-cols-2 gap-3 mb-6">
+            {ROLE_OPTIONS.map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => setValue('role_name', opt.value)}
+                className={`p-4 rounded-xl border-2 text-left transition-all ${
+                  selectedRole === opt.value
+                    ? 'border-[var(--color-royal-blue)] bg-[var(--color-pale-blue)] shadow-md shadow-blue-500/20'
+                    : 'border-gray-200 hover:border-gray-300 bg-white shadow-sm'
+                }`}
+              >
+                <div className={`mb-2 ${selectedRole === opt.value ? 'text-[var(--color-royal-blue)]' : 'text-gray-400'}`}>
+                  {opt.icon}
+                </div>
+                <p className={`font-semibold text-sm ${selectedRole === opt.value ? 'text-[var(--color-royal-blue)]' : 'text-gray-700'}`}>
+                  {opt.label}
+                </p>
+                <p className="text-xs text-gray-400 mt-1 leading-tight">{opt.description}</p>
+              </button>
+            ))}
+          </div>
 
-            {serverError && (
-              <div className="mb-5 p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm">
-                {serverError}
+          {serverError && (
+            <div className="mb-5 p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm">
+              {serverError}
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 text-left">
+            <div className="grid grid-cols-2 gap-4">
+              <Input label="First Name" placeholder="Rahul" {...register('first_name')} error={errors.first_name?.message} />
+              <Input label="Last Name" placeholder="Sharma" {...register('last_name')} error={errors.last_name?.message} />
+            </div>
+            <Input label="Email Address" type="email" placeholder="you@company.com" {...register('email')} error={errors.email?.message} />
+            <Input label="Password" type="password" placeholder="••••••••" {...register('password')} error={errors.password?.message} />
+            <Input label="Confirm Password" type="password" placeholder="••••••••" {...register('confirm_password')} error={errors.confirm_password?.message} />
+
+            {selectedRole === 'Vendor' && (
+              <div className="space-y-4 border-t border-gray-200 pt-4 mt-2">
+                <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Company Information</p>
+                <Input label="Company Name *" placeholder="ABC Traders Pvt Ltd" {...register('company_name')} error={errors.company_name?.message} />
+                <div className="grid grid-cols-2 gap-4">
+                  <Input label="GST Number" placeholder="29AAACC1234B1Z5" {...register('gst_number')} error={errors.gst_number?.message} />
+                  <Input label="Phone" placeholder="+91 98765 43210" {...register('phone')} error={errors.phone?.message} />
+                </div>
+                <Input label="Address" placeholder="123 MG Road, Bangalore" {...register('address')} error={errors.address?.message} />
               </div>
             )}
 
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <Input label="First Name" placeholder="Rahul" {...register('first_name')} error={errors.first_name?.message} />
-                <Input label="Last Name" placeholder="Sharma" {...register('last_name')} error={errors.last_name?.message} />
-              </div>
-              <Input label="Email Address" type="email" placeholder="you@company.com" {...register('email')} error={errors.email?.message} />
-              <Input label="Password" type="password" placeholder="••••••••" {...register('password')} error={errors.password?.message} />
-              <Input label="Confirm Password" type="password" placeholder="••••••••" {...register('confirm_password')} error={errors.confirm_password?.message} />
+            <Button type="submit" variant="primary" className="w-full py-3 mt-4 text-lg font-semibold shadow-lg shadow-blue-500/30 transition-all hover:shadow-blue-500/50" disabled={isLoading}>
+              {isLoading ? 'Creating Account...' : 'Create Account'}
+            </Button>
+          </form>
 
-              {selectedRole === 'Vendor' && (
-                <div className="space-y-4 border-t border-gray-100 pt-4">
-                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Company Information</p>
-                  <Input label="Company Name *" placeholder="ABC Traders Pvt Ltd" {...register('company_name')} error={errors.company_name?.message} />
-                  <div className="grid grid-cols-2 gap-4">
-                    <Input label="GST Number" placeholder="29AAACC1234B1Z5" {...register('gst_number')} error={errors.gst_number?.message} />
-                    <Input label="Phone" placeholder="+91 98765 43210" {...register('phone')} error={errors.phone?.message} />
-                  </div>
-                  <Input label="Address" placeholder="123 MG Road, Bangalore" {...register('address')} error={errors.address?.message} />
-                </div>
-              )}
-
-              <Button type="submit" variant="primary" className="w-full py-3 mt-2" disabled={isLoading}>
-                {isLoading ? 'Creating Account...' : 'Create Account'}
-              </Button>
-            </form>
-
-            <p className="mt-6 text-center text-sm text-gray-500">
-              Already have an account?{' '}
-              <Link to="/login" className="text-[var(--color-royal-blue)] font-semibold hover:underline">
-                Sign in
-              </Link>
-            </p>
-          </div>
+          <p className="mt-6 text-center text-sm text-gray-500">
+            Already have an account?{' '}
+            <Link to="/login" className="text-[var(--color-royal-blue)] font-bold hover:underline hover:text-blue-700 transition-colors">
+              Sign in
+            </Link>
+          </p>
         </div>
       </div>
     </div>

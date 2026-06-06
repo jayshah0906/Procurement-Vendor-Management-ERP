@@ -5,7 +5,7 @@ import { ProtectedRoute, ROLES } from './routes/ProtectedRoute';
 import { DashboardLayout } from './components/layout/DashboardLayout';
 
 // Public Pages
-import { LandingPage } from './pages/public/LandingPage';
+
 import { LoginPage } from './pages/public/LoginPage';
 import { SignupPage } from './pages/public/SignupPage';
 
@@ -29,7 +29,7 @@ function App() {
     <BrowserRouter>
       <Routes>
         {/* Public Routes */}
-        <Route path="/" element={<LandingPage />} />
+        <Route path="/" element={<Navigate to="/login" replace />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/signup" element={<SignupPage />} />
 
