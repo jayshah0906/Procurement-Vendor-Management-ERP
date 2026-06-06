@@ -2,8 +2,15 @@ import client from './client';
 
 export const approvalsApi = {
   /**
+   * GET /approvals — list all approval workflows for the org
+   * @param {object} params - { status: 'pending' | 'approved' | 'rejected' }
+   */
+  listWorkflows: (params) =>
+    client.get('/approvals', { params }).then((r) => r.data.data),
+
+  /**
    * POST /approvals/initiate
-   * Body: { entity_type, entity_id, approvers: [{ user_id, step_order, required }] }
+   * Body: { entity_type, entity_id, approvers: [{ approver_id, level_no }] }
    */
   initiateApproval: (data) =>
     client.post('/approvals/initiate', data).then((r) => r.data.data),

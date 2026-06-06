@@ -6,6 +6,9 @@ import { initiateApprovalSchema, actionApprovalStepSchema } from "../validators/
 
 const router = Router();
 
+// List all workflows for the org (with optional ?status= filter)
+router.get("/approvals", authenticateToken, ApprovalController.listWorkflows);
+
 router.post(
   "/approvals/initiate",
   authenticateToken,

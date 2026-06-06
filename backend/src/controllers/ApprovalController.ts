@@ -2,6 +2,17 @@ import { Request, Response, NextFunction } from "express";
 import { ApprovalService } from "../services/ApprovalService";
 
 export class ApprovalController {
+  static async listWorkflows(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const orgId = req.user?.organizationId || null;
+      const status = req.query.status as string | undefined;
+      const result = await ApprovalService.listWorkflows(orgId, status);
+      res.status(200).json({ success: true, data: result });
+    } catch (error) {
+      next(error);
+    }
+  }
+
   static async initiateApproval(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const actorId = req.user?.userId || "";

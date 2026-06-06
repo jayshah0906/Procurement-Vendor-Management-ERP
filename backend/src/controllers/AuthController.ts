@@ -57,4 +57,15 @@ export class AuthController {
       next(error);
     }
   }
+  static async register(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const result = await AuthService.register(req.body);
+      res.status(201).json({
+        success: true,
+        data: result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
 }

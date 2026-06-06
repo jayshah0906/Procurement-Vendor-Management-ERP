@@ -1,7 +1,7 @@
 import * as bcrypt from "bcrypt";
 import * as jwt from "jsonwebtoken";
 import { prisma } from "../utils/prisma";
-import { UnauthorizedError, NotFoundError } from "../utils/errors";
+import { UnauthorizedError, NotFoundError, BadRequestError } from "../utils/errors";
 import { AuditService } from "./AuditService";
 import { JwtPayload } from "../middleware/auth";
 
@@ -165,5 +165,115 @@ export class AuthService {
       is_vendor: user.vendor_id !== null,
       permissions,
     };
+  }
+
+  static async register(data: {
+    first_name: string;
+    last_name?: string;
+    email: string;
+    password: string;
+    role_name: "Procurement Officer" | "Vendor";
+    company_name?: string;
+    gst_number?: string;
+    phone?: string;
+    address?: string;
+  }) {
+    // 1. Check if email already taken
+    const existing = await prisma.users.findUnique({ where: { email: data.email } });
+    if (existing) throw new BadRequestError("An account with this email already exists");
+
+    // 2. Find the role by name
+    const role = await prisma.roles.findFirst({ where: { name: data.role_name } });
+    if (!role) throw new NotFoundError(`Role '${data.role_name}' not configured in the system`);
+
+    // 3. Find the default organization (first org in the system for hackathon context)
+    const org = await prisma.organizations.findFirst({ orderBy: { created_at: "asc" } });
+    const organizationId = org?.id || null;
+
+    // 4. Hash password
+    const passwordHash = await bcrypt.hash(data.password, 10);
+
+    return await prisma.$transaction(async (tx) => {
+      let vendorId: string | null = null;
+
+      // 5. If registering as Vendor, create vendor record first
+      if (data.role_name === "Vendor") {
+        if (!data.company_name) throw new BadRequestError("Company name is required for vendor registration");
+        const vendor = await tx.vendors.create({
+          data: {
+            organization_id: organizationId,
+            company_name: data.company_name,
+            gst_number: data.gst_number || null,
+            contact_person: `${data.first_name} ${data.last_name || ""}`.trim(),
+            email: data.email,
+            phone: data.phone || null,
+            address: data.address || null,
+            status: "pending",
+          },
+        });
+        vendorId = vendor.id;
+      }
+
+      // 6. Create user
+      const user = await tx.users.create({
+        data: {
+          organization_id: organizationId,
+          role_id: role.id,
+          vendor_id: vendorId,
+          first_name: data.first_name,
+          last_name: data.last_name || null,
+          email: data.email,
+          password_hash: passwordHash,
+          phone: data.phone || null,
+          is_active: true,
+        },
+        include: {
+          roles: {
+            include: { role_permissions: { include: { permissions: true } } },
+          },
+        },
+      });
+
+      await AuditService.record(tx, {
+        actorId: user.id,
+        organizationId,
+        entityType: "users",
+        entityId: user.id,
+        action: "USER_REGISTERED",
+        newValue: { email: user.email, role: data.role_name, vendor_id: vendorId },
+      });
+
+      // 7. Issue tokens
+      const permissions = user.roles.role_permissions.map(
+        (rp) => `${rp.permissions.resource}.${rp.permissions.action}`
+      );
+
+      const payload: JwtPayload = {
+        user_id: user.id,
+        organization_id: user.organization_id || "",
+        role: user.roles.name,
+        role_id: user.role_id,
+        vendor_id: user.vendor_id,
+      };
+
+      const token = jwt.sign(payload, JWT_SECRET, { expiresIn: "1h" });
+      const refreshToken = jwt.sign({ user_id: user.id }, JWT_REFRESH_SECRET, { expiresIn: "7d" });
+
+      return {
+        token,
+        refresh_token: refreshToken,
+        user: {
+          id: user.id,
+          first_name: user.first_name,
+          last_name: user.last_name,
+          email: user.email,
+          role: user.roles.name,
+          organization_id: user.organization_id,
+          vendor_id: user.vendor_id,
+          is_vendor: user.vendor_id !== null,
+          permissions,
+        },
+      };
+    });
   }
 }

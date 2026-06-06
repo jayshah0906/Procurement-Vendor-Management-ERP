@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
 import { authApi } from '../../api/auth.api';
 import { Input } from '../../components/ui/Input';
@@ -104,8 +104,11 @@ export const LoginPage = () => {
             </Button>
           </form>
 
-          <p className="mt-8 text-center text-xs text-gray-400">
-            Access is invitation-only. Contact your administrator to get started.
+          <p className="mt-8 text-center text-sm text-gray-500">
+            Don&apos;t have an account?{' '}
+            <Link to="/signup" className="text-[var(--color-royal-blue)] font-semibold hover:underline">
+              Sign up
+            </Link>
           </p>
         </div>
       </div>

@@ -7,6 +7,7 @@ import { DashboardLayout } from './components/layout/DashboardLayout';
 // Public Pages
 import { LandingPage } from './pages/public/LandingPage';
 import { LoginPage } from './pages/public/LoginPage';
+import { SignupPage } from './pages/public/SignupPage';
 
 // ERP Pages
 import { DashboardPage } from './pages/erp/DashboardPage';
@@ -17,9 +18,11 @@ import { QuotationSubmitPage } from './pages/erp/QuotationSubmitPage';
 import { ComparisonPage } from './pages/erp/ComparisonPage';
 import { ApprovalsPage } from './pages/erp/ApprovalsPage';
 import { PurchaseOrdersPage } from './pages/erp/PurchaseOrdersPage';
+import { PurchaseOrderDetailPage } from './pages/erp/PurchaseOrderDetailPage';
 import { InvoicesPage } from './pages/erp/InvoicesPage';
 import { ActivityLogsPage } from './pages/erp/ActivityLogsPage';
 import { ReportsPage } from './pages/erp/ReportsPage';
+import { NotFoundPage } from './pages/errors/NotFoundPage';
 
 function App() {
   return (
@@ -28,6 +31,7 @@ function App() {
         {/* Public Routes */}
         <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/signup" element={<SignupPage />} />
 
         {/* Protected ERP Routes */}
         <Route path="/erp" element={<ProtectedRoute />}>
@@ -43,6 +47,7 @@ function App() {
               <Route path="rfqs" element={<RFQsPage />} />
               <Route path="compare" element={<ComparisonPage />} />
               <Route path="orders" element={<PurchaseOrdersPage />} />
+              <Route path="orders/:id" element={<PurchaseOrderDetailPage />} />
             </Route>
 
             {/* Quotations: Procurement Manager, Officer, Vendor */}
@@ -75,7 +80,7 @@ function App() {
         </Route>
 
         {/* Fallback */}
-        <Route path="*" element={<Navigate to="/" replace />} />
+        <Route path="*" element={<NotFoundPage />} />
       </Routes>
     </BrowserRouter>
   );

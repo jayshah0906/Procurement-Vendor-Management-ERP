@@ -4,6 +4,28 @@ import { AuditService } from "./AuditService";
 import { approval_status, quotation_status, po_status, vendor_status } from "../generated/prisma/client";
 
 export class ApprovalService {
+  static async listWorkflows(organizationId: string | null, status?: string) {
+    const where: any = { organization_id: organizationId, deleted_at: null };
+    if (status) where.status = status;
+
+    const workflows = await prisma.approval_workflows.findMany({
+      where,
+      orderBy: { created_at: "desc" },
+      include: {
+        approval_steps: {
+          where: { deleted_at: null },
+          orderBy: { level_no: "asc" },
+          include: {
+            users: { select: { first_name: true, last_name: true, email: true } },
+          },
+        },
+        users: { select: { first_name: true, last_name: true } },
+      },
+    });
+
+    return workflows;
+  }
+
   static async initiateApproval(
     actorId: string,
     organizationId: string,

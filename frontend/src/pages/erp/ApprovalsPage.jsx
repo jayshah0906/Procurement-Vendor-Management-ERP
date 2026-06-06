@@ -1,156 +1,260 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { approvalsApi } from '../../api/approvals.api';
 import { Card, CardContent } from '../../components/ui/Card';
+import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
-import { Skeleton } from '../../components/feedback/Skeleton';
-import { CheckCircle, XCircle, Clock } from '@phosphor-icons/react';
-import { useState } from 'react';
+import { TableSkeleton } from '../../components/feedback/Skeleton';
+import { CheckCircle, XCircle, ArrowRight, CheckSquareOffset } from '@phosphor-icons/react';
+import { useAuthStore } from '../../store/authStore';
 
-const stepStatusIcon = (status) => {
-  if (status === 'approved') return <CheckCircle size={24} weight="fill" className="text-green-500" />;
-  if (status === 'rejected') return <XCircle size={24} weight="fill" className="text-red-500" />;
-  if (status === 'pending') return <Clock size={24} weight="fill" className="text-yellow-500" />;
-  return <div className="w-4 h-4 rounded-full bg-gray-200 border-2 border-white" />;
+const statusVariant = (status) => {
+  const map = { approved: 'green', rejected: 'red', pending: 'yellow' };
+  return map[status?.toLowerCase()] || 'gray';
+};
+
+const entityLabel = (type) => {
+  const map = { quotation: 'Quotation', po: 'Purchase Order', vendor: 'Vendor' };
+  return map[type] || type?.toUpperCase();
 };
 
 export const ApprovalsPage = () => {
-  const { workflowId } = useParams();
+  const [searchParams] = useSearchParams();
+  const workflowId = searchParams.get('id');
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const [remarks, setRemarks] = useState('');
+  const { user } = useAuthStore();
+  const currentUserId = user?.id;
 
-  const { data: workflow, isLoading } = useQuery({
+  // List all workflows if no specific ID is provided
+  const { data: workflowsData, isLoading: loadingList } = useQuery({
+    queryKey: ['approvals-list'],
+    queryFn: () => approvalsApi.listWorkflows({}),
+    enabled: !workflowId,
+  });
+
+  // Get specific workflow if ID is provided
+  const { data: workflow, isLoading: loadingWorkflow } = useQuery({
     queryKey: ['approvals', workflowId],
     queryFn: () => approvalsApi.getWorkflow(workflowId),
     enabled: !!workflowId,
   });
 
   const actionMutation = useMutation({
-    mutationFn: ({ stepId, action }) =>
+    mutationFn: ({ stepId, action, remarks }) =>
       approvalsApi.executeStepAction(workflowId, stepId, { action, remarks }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['approvals', workflowId] });
       queryClient.invalidateQueries({ queryKey: ['dashboard', 'summary'] });
-      setRemarks('');
     },
   });
 
+  const workflows = Array.isArray(workflowsData) ? workflowsData : workflowsData?.items ?? [];
+
+  // ==========================================
+  // LIST VIEW
+  // ==========================================
   if (!workflowId) {
     return (
-      <div className="space-y-6 max-w-4xl mx-auto">
+      <div className="space-y-6">
         <h1 className="text-2xl font-bold text-gray-900">Pending Approvals</h1>
         <Card>
-          <CardContent className="p-12 text-center text-gray-400">
-            <p>Navigate to a specific approval workflow to review it.</p>
-            <p className="text-sm mt-2">Approval requests will appear here when initiated from the Comparison page.</p>
+          <CardContent className="p-0">
+            {loadingList ? (
+              <div className="p-6"><TableSkeleton rows={4} cols={5} /></div>
+            ) : workflows.length === 0 ? (
+              <div className="p-12 text-center">
+                <CheckSquareOffset size={48} className="mx-auto text-gray-300 mb-3" />
+                <p className="text-gray-500 font-medium">No pending approvals</p>
+                <p className="text-sm text-gray-400 mt-1">You're all caught up!</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm">
+                  <thead className="bg-gray-50 border-b border-gray-200">
+                    <tr>
+                      <th className="px-6 py-4 font-semibold text-gray-600 uppercase tracking-wider">Entity Type</th>
+                      <th className="px-6 py-4 font-semibold text-gray-600 uppercase tracking-wider">Entity ID</th>
+                      <th className="px-6 py-4 font-semibold text-gray-600 uppercase tracking-wider">Level</th>
+                      <th className="px-6 py-4 font-semibold text-gray-600 uppercase tracking-wider">Status</th>
+                      <th className="px-6 py-4 font-semibold text-gray-600 uppercase tracking-wider">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {workflows.map((wf) => (
+                      <tr key={wf.id} className="hover:bg-gray-50 transition-colors">
+                        <td className="px-6 py-4 font-medium text-gray-900">
+                          {entityLabel(wf.entity_type)}
+                        </td>
+                        <td className="px-6 py-4 text-gray-500 font-mono text-xs">
+                          {wf.entity_id?.slice(0, 8)}…
+                        </td>
+                        <td className="px-6 py-4 text-gray-600">Level {wf.current_level}</td>
+                        <td className="px-6 py-4">
+                          <Badge variant={statusVariant(wf.status)}>{wf.status}</Badge>
+                        </td>
+                        <td className="px-6 py-4">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => navigate(`/erp/approvals?id=${wf.id}`)}
+                          >
+                            View Details <ArrowRight size={14} className="ml-1" />
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
     );
   }
 
-  if (isLoading) {
+  // ==========================================
+  // DETAIL VIEW
+  // ==========================================
+  if (loadingWorkflow) {
     return (
-      <div className="space-y-6 max-w-4xl mx-auto">
-        <Skeleton className="h-8 w-48" />
-        <Skeleton className="h-64 w-full" />
+      <div className="max-w-3xl mx-auto p-8 bg-white rounded-xl shadow-sm border border-gray-100 animate-pulse">
+        <div className="h-8 bg-gray-200 rounded w-1/3 mb-8"></div>
+        <div className="space-y-4">
+          <div className="h-24 bg-gray-100 rounded-lg"></div>
+          <div className="h-24 bg-gray-100 rounded-lg"></div>
+        </div>
       </div>
     );
   }
 
   if (!workflow) {
     return (
-      <div className="max-w-4xl mx-auto py-12 text-center text-gray-400">
+      <div className="max-w-3xl mx-auto p-12 text-center bg-white rounded-xl border border-gray-100 shadow-sm text-gray-500">
         Workflow not found.
+        <br />
+        <Button variant="outline" className="mt-4" onClick={() => navigate('/erp/approvals')}>
+          Back to List
+        </Button>
       </div>
     );
   }
 
-  const pendingStep = workflow.steps?.find((s) => s.status === 'pending');
-
   return (
-    <div className="space-y-6 max-w-4xl mx-auto">
-      <h1 className="text-2xl font-bold text-gray-900">Approval Workflow</h1>
+    <div className="max-w-3xl mx-auto space-y-6">
+      <div className="flex items-center gap-4">
+        <button onClick={() => navigate('/erp/approvals')} className="text-gray-400 hover:text-gray-600">
+          <ArrowRight size={20} className="rotate-180" />
+        </button>
+        <h1 className="text-2xl font-bold text-gray-900">
+          Approval Workflow: {entityLabel(workflow.entity_type)}
+        </h1>
+        <Badge variant={statusVariant(workflow.status)} className="ml-auto text-sm py-1 px-3">
+          {workflow.status?.toUpperCase()}
+        </Badge>
+      </div>
 
       <Card>
-        <CardContent className="p-6">
-          <div className="flex justify-between items-start mb-6 pb-6 border-b border-gray-100">
+        <CardContent className="p-0">
+          <div className="p-6 border-b border-gray-100 bg-gray-50 grid grid-cols-2 gap-4 text-sm">
             <div>
-              <h2 className="text-xl font-bold text-gray-900 mb-1">
-                {workflow.entity_type?.toUpperCase()}: {workflow.entity_id?.slice(0, 8)}…
-              </h2>
-              <p className="text-gray-500">
-                Status: <span className="font-semibold capitalize">{workflow.status}</span>
-              </p>
+              <p className="text-gray-500 mb-1">Entity ID</p>
+              <p className="font-mono font-medium text-gray-900">{workflow.entity_id}</p>
+            </div>
+            <div>
+              <p className="text-gray-500 mb-1">Current Level</p>
+              <p className="font-medium text-gray-900">Level {workflow.current_level}</p>
             </div>
           </div>
 
-          <div className="mb-8">
-            <h3 className="font-semibold text-gray-700 mb-4">Approval Steps</h3>
-            <div className="relative border-l-2 border-gray-200 ml-4 space-y-8 pb-4">
-              {(workflow.steps ?? []).map((step, i) => (
-                <div key={step.id} className={`relative pl-8 ${step.status === 'pending' && i > 0 && workflow.steps[i - 1]?.status !== 'approved' ? 'opacity-40' : ''}`}>
-                  <span className="absolute -left-3 top-0 bg-white">
-                    {stepStatusIcon(step.status)}
-                  </span>
-                  <p className="font-semibold text-gray-900">Step {step.step_order}</p>
-                  {step.status === 'approved' && step.acted_at && (
-                    <p className="text-sm text-gray-500">Approved on {new Date(step.acted_at).toLocaleDateString()}</p>
-                  )}
-                  {step.status === 'rejected' && (
-                    <p className="text-sm text-red-600">Rejected — {step.remarks || 'No remarks'}</p>
-                  )}
-                  {step.status === 'pending' && (
-                    <p className="text-sm text-yellow-600">Awaiting review</p>
-                  )}
-                </div>
-              ))}
+          <div className="p-6">
+            <h3 className="font-semibold text-gray-900 mb-4">Approval Chain</h3>
+            <div className="space-y-6">
+              {(workflow.approval_steps || []).map((step, index) => {
+                const isCurrentPending = step.status === 'pending' && step.level_no === workflow.current_level;
+                const canAct = isCurrentPending && step.approver_id === currentUserId;
+
+                return (
+                  <div key={step.id} className="relative pl-8">
+                    {/* Timeline connector */}
+                    {index !== workflow.approval_steps.length - 1 && (
+                      <div className="absolute left-[11px] top-8 bottom-[-24px] w-[2px] bg-gray-100"></div>
+                    )}
+                    
+                    {/* Timeline dot */}
+                    <div className={`absolute left-0 top-1.5 w-6 h-6 rounded-full flex items-center justify-center
+                      ${step.status === 'approved' ? 'bg-green-100 text-green-600' : 
+                        step.status === 'rejected' ? 'bg-red-100 text-red-600' : 
+                        isCurrentPending ? 'bg-blue-100 text-[var(--color-royal-blue)] ring-4 ring-blue-50' : 
+                        'bg-gray-100 text-gray-400'}`}
+                    >
+                      {step.status === 'approved' ? <CheckCircle size={14} weight="fill" /> :
+                       step.status === 'rejected' ? <XCircle size={14} weight="fill" /> :
+                       <span className="text-xs font-bold">{step.level_no}</span>}
+                    </div>
+
+                    <div className={`p-4 rounded-xl border ${canAct ? 'border-[var(--color-royal-blue)] bg-blue-50/30' : 'border-gray-100 bg-white'}`}>
+                      <div className="flex justify-between items-start mb-2">
+                        <div>
+                          <p className="font-semibold text-gray-900">
+                            {step.users ? `${step.users.first_name} ${step.users.last_name}` : 'Unknown Approver'}
+                          </p>
+                          <p className="text-xs text-gray-500">{step.users?.email}</p>
+                        </div>
+                        <Badge variant={statusVariant(step.status)}>{step.status}</Badge>
+                      </div>
+
+                      {step.remarks && (
+                        <div className="mt-3 p-3 bg-gray-50 rounded-lg text-sm text-gray-600 italic">
+                          "{step.remarks}"
+                        </div>
+                      )}
+
+                      {canAct && (
+                        <div className="mt-4 pt-4 border-t border-blue-100">
+                          <form
+                            onSubmit={(e) => {
+                              e.preventDefault();
+                              const remarks = e.target.remarks.value;
+                              const action = e.nativeEvent.submitter.value;
+                              actionMutation.mutate({ stepId: step.id, action, remarks });
+                            }}
+                          >
+                            <textarea
+                              name="remarks"
+                              rows={2}
+                              placeholder="Add a comment... (optional)"
+                              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-royal-blue)] mb-3"
+                            />
+                            <div className="flex gap-3">
+                              <Button
+                                type="submit"
+                                value="reject"
+                                variant="outline"
+                                className="text-red-600 border-red-200 hover:bg-red-50"
+                                disabled={actionMutation.isPending}
+                              >
+                                Reject
+                              </Button>
+                              <Button
+                                type="submit"
+                                value="approve"
+                                variant="primary"
+                                disabled={actionMutation.isPending}
+                              >
+                                Approve
+                              </Button>
+                            </div>
+                          </form>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
-
-          {pendingStep && workflow.status === 'pending' && (
-            <div className="border-t border-gray-100 pt-6 space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Remarks (optional)</label>
-                <textarea
-                  value={remarks}
-                  onChange={(e) => setRemarks(e.target.value)}
-                  rows={2}
-                  placeholder="Add a comment for this decision..."
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-royal-blue)] resize-none"
-                />
-              </div>
-              {actionMutation.isError && (
-                <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm">
-                  {actionMutation.error?.response?.data?.error || 'Action failed.'}
-                </div>
-              )}
-              <div className="flex gap-4">
-                <Button
-                  variant="danger"
-                  className="flex-1"
-                  onClick={() => actionMutation.mutate({ stepId: pendingStep.id, action: 'reject' })}
-                  disabled={actionMutation.isPending}
-                >
-                  <XCircle size={20} className="mr-2" /> Reject
-                </Button>
-                <Button
-                  variant="primary"
-                  className="flex-1"
-                  onClick={() => actionMutation.mutate({ stepId: pendingStep.id, action: 'approve' })}
-                  disabled={actionMutation.isPending}
-                >
-                  <CheckCircle size={20} className="mr-2" /> Approve
-                </Button>
-              </div>
-            </div>
-          )}
-
-          {workflow.status !== 'pending' && (
-            <div className={`text-center py-4 rounded-lg font-semibold ${workflow.status === 'approved' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
-              This workflow has been {workflow.status}.
-            </div>
-          )}
         </CardContent>
       </Card>
     </div>

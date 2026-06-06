@@ -3,14 +3,16 @@ import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
 import { rfqsApi } from '../../api/rfqs.api';
+import { vendorsApi } from '../../api/vendors.api';
 import { masterApi } from '../../api/master.api';
 import { Card, CardContent, CardHeader } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
 import { TableSkeleton } from '../../components/feedback/Skeleton';
-import { Plus, Trash, X, FileText } from '@phosphor-icons/react';
+import { Plus, Trash, X, FileText, Users, ChartBar } from '@phosphor-icons/react';
 
 const rfqSchema = z.object({
   title: z.string().min(3, 'Title is required'),
@@ -27,13 +29,16 @@ const rfqSchema = z.object({
 });
 
 const statusVariant = (status) => {
-  const map = { published: 'blue', draft: 'gray', closed: 'red', converted_to_po: 'green', cancelled: 'gray' };
+  const map = { published: 'blue', draft: 'gray', closed: 'red', approved: 'green', awarded: 'green', converted_to_po: 'green', cancelled: 'gray' };
   return map[status] || 'gray';
 };
 
 export const RFQsPage = () => {
   const queryClient = useQueryClient();
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const navigate = useNavigate();
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [inviteRFQ, setInviteRFQ] = useState(null); // rfq object to invite for
+  const [selectedVendorIds, setSelectedVendorIds] = useState([]);
 
   const { data: rfqData, isLoading } = useQuery({
     queryKey: ['rfqs'],
@@ -45,7 +50,14 @@ export const RFQsPage = () => {
     queryFn: masterApi.getCategories,
   });
 
+  const { data: vendorData } = useQuery({
+    queryKey: ['vendors'],
+    queryFn: () => vendorsApi.getVendors({ status: 'active' }),
+    enabled: !!inviteRFQ,
+  });
+
   const rfqs = Array.isArray(rfqData) ? rfqData : rfqData?.items ?? [];
+  const vendors = Array.isArray(vendorData) ? vendorData : vendorData?.items ?? [];
 
   const { register, control, handleSubmit, reset, formState: { errors } } = useForm({
     resolver: zodResolver(rfqSchema),
@@ -58,14 +70,13 @@ export const RFQsPage = () => {
 
   const createMutation = useMutation({
     mutationFn: (data) => {
-      // Convert local date string to ISO datetime for backend
       const deadline = new Date(data.deadline).toISOString();
       return rfqsApi.createRfq({ ...data, deadline });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['rfqs'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard', 'summary'] });
-      setIsModalOpen(false);
+      setIsCreateOpen(false);
       reset();
     },
   });
@@ -75,13 +86,33 @@ export const RFQsPage = () => {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['rfqs'] }),
   });
 
+  const closeMutation = useMutation({
+    mutationFn: (id) => rfqsApi.patchRfqStatus(id, 'closed'),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['rfqs'] }),
+  });
+
+  const inviteMutation = useMutation({
+    mutationFn: ({ rfqId, vendor_ids }) => rfqsApi.inviteVendors(rfqId, vendor_ids),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['rfqs'] });
+      setInviteRFQ(null);
+      setSelectedVendorIds([]);
+    },
+  });
+
+  const toggleVendor = (id) => {
+    setSelectedVendorIds((prev) =>
+      prev.includes(id) ? prev.filter((v) => v !== id) : [...prev, id]
+    );
+  };
+
   const onSubmit = (data) => createMutation.mutate(data);
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <h1 className="text-2xl font-bold text-gray-900">Requests for Quotation</h1>
-        <Button variant="primary" onClick={() => setIsModalOpen(true)}>
+        <Button variant="primary" onClick={() => setIsCreateOpen(true)}>
           <Plus size={18} className="mr-2" /> Create RFQ
         </Button>
       </div>
@@ -89,7 +120,7 @@ export const RFQsPage = () => {
       <Card>
         <CardContent className="p-0">
           {isLoading ? (
-            <div className="p-6"><TableSkeleton rows={5} cols={5} /></div>
+            <div className="p-6"><TableSkeleton rows={5} cols={6} /></div>
           ) : rfqs.length === 0 ? (
             <div className="p-12 text-center">
               <FileText size={48} className="mx-auto text-gray-300 mb-3" />
@@ -120,16 +151,48 @@ export const RFQsPage = () => {
                         <Badge variant={statusVariant(rfq.status)}>{rfq.status?.replace('_', ' ')}</Badge>
                       </td>
                       <td className="px-6 py-4">
-                        {rfq.status === 'draft' && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => publishMutation.mutate(rfq.id)}
-                            disabled={publishMutation.isPending}
-                          >
-                            Publish
-                          </Button>
-                        )}
+                        <div className="flex flex-wrap gap-2">
+                          {rfq.status === 'draft' && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => publishMutation.mutate(rfq.id)}
+                              disabled={publishMutation.isPending}
+                            >
+                              Publish
+                            </Button>
+                          )}
+                          {rfq.status === 'published' && (
+                            <>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => { setInviteRFQ(rfq); setSelectedVendorIds([]); }}
+                              >
+                                <Users size={14} className="mr-1" /> Invite Vendors
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-red-500 hover:bg-red-50"
+                                onClick={() => closeMutation.mutate(rfq.id)}
+                                disabled={closeMutation.isPending}
+                              >
+                                Close
+                              </Button>
+                            </>
+                          )}
+                          {(rfq.status === 'published' || rfq.status === 'closed' || rfq.status === 'approved' || rfq.status === 'awarded') && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-[var(--color-royal-blue)]"
+                              onClick={() => navigate(`/erp/compare?rfq_id=${rfq.id}`)}
+                            >
+                              <ChartBar size={14} className="mr-1" /> Compare Bids
+                            </Button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -140,13 +203,75 @@ export const RFQsPage = () => {
         </CardContent>
       </Card>
 
+      {/* Invite Vendors Modal */}
+      {inviteRFQ && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden">
+            <div className="flex justify-between items-center p-6 border-b border-gray-100">
+              <div>
+                <h2 className="text-xl font-bold text-gray-900">Invite Vendors</h2>
+                <p className="text-sm text-gray-500 mt-1">RFQ: {inviteRFQ.title}</p>
+              </div>
+              <button onClick={() => setInviteRFQ(null)} className="text-gray-400 hover:text-gray-600">
+                <X size={24} />
+              </button>
+            </div>
+            <div className="p-6 max-h-[60vh] overflow-y-auto">
+              {vendors.length === 0 ? (
+                <p className="text-gray-400 text-sm text-center py-8">No active vendors found. Add vendors first.</p>
+              ) : (
+                <div className="space-y-2">
+                  <p className="text-xs text-gray-500 mb-3">Select vendors to invite to this RFQ:</p>
+                  {vendors.map((v) => (
+                    <label
+                      key={v.id}
+                      className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                        selectedVendorIds.includes(v.id)
+                          ? 'border-[var(--color-royal-blue)] bg-[var(--color-pale-blue)]'
+                          : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedVendorIds.includes(v.id)}
+                        onChange={() => toggleVendor(v.id)}
+                        className="accent-[var(--color-royal-blue)]"
+                      />
+                      <div>
+                        <p className="font-medium text-gray-900 text-sm">{v.company_name}</p>
+                        <p className="text-xs text-gray-500">{v.email}</p>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
+            {inviteMutation.isError && (
+              <div className="mx-6 mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm">
+                {inviteMutation.error?.response?.data?.error || 'Failed to invite vendors.'}
+              </div>
+            )}
+            <div className="px-6 pb-6 flex justify-end gap-3 border-t border-gray-100 pt-4">
+              <Button variant="ghost" onClick={() => setInviteRFQ(null)}>Cancel</Button>
+              <Button
+                variant="primary"
+                onClick={() => inviteMutation.mutate({ rfqId: inviteRFQ.id, vendor_ids: selectedVendorIds })}
+                disabled={selectedVendorIds.length === 0 || inviteMutation.isPending}
+              >
+                {inviteMutation.isPending ? 'Inviting...' : `Invite ${selectedVendorIds.length > 0 ? `(${selectedVendorIds.length})` : ''} Vendors`}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Create RFQ Modal */}
-      {isModalOpen && (
+      {isCreateOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden">
             <div className="flex justify-between items-center p-6 border-b border-gray-100">
               <h2 className="text-xl font-bold text-gray-900">Create Request for Quotation</h2>
-              <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-gray-600">
+              <button onClick={() => setIsCreateOpen(false)} className="text-gray-400 hover:text-gray-600">
                 <X size={24} />
               </button>
             </div>
@@ -186,7 +311,6 @@ export const RFQsPage = () => {
                 <Input label="Submission Deadline" type="date" {...register('deadline')} error={errors.deadline?.message} />
               </div>
 
-              {/* Line Items */}
               <div>
                 <div className="flex items-center justify-between mb-3">
                   <h4 className="font-semibold text-gray-700">Line Items</h4>
@@ -223,7 +347,7 @@ export const RFQsPage = () => {
               </div>
 
               <div className="pt-4 flex justify-end gap-3 border-t border-gray-100">
-                <Button type="button" variant="ghost" onClick={() => setIsModalOpen(false)}>Cancel</Button>
+                <Button type="button" variant="ghost" onClick={() => setIsCreateOpen(false)}>Cancel</Button>
                 <Button type="submit" variant="primary" disabled={createMutation.isPending}>
                   {createMutation.isPending ? 'Creating...' : 'Create RFQ (Draft)'}
                 </Button>
