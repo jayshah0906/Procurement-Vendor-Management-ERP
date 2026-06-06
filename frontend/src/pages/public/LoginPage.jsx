@@ -32,8 +32,9 @@ export const LoginPage = () => {
       login(result.user, result.token, result.refresh_token);
       navigate('/erp/dashboard');
     } catch (err) {
+      const apiError = err?.response?.data?.error;
       const message =
-        err?.response?.data?.error ||
+        (typeof apiError === 'string' ? apiError : apiError?.message) ||
         err?.response?.data?.message ||
         'Login failed. Please check your credentials.';
       setServerError(message);

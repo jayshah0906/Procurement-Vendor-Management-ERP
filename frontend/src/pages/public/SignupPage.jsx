@@ -69,8 +69,11 @@ export const SignupPage = () => {
       login(result.user, result.token, result.refresh_token);
       navigate('/erp/dashboard');
     } catch (err) {
+      const apiError = err?.response?.data?.error;
       setServerError(
-        err?.response?.data?.error || err?.response?.data?.message || 'Registration failed. Please try again.'
+        (typeof apiError === 'string' ? apiError : apiError?.message) ||
+        err?.response?.data?.message ||
+        'Registration failed. Please try again.'
       );
     } finally {
       setIsLoading(false);
