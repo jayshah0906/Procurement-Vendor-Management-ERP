@@ -1,6 +1,9 @@
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { createQuotation } from '../../api/mockApi';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader } from '../../components/ui/Card';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
@@ -12,12 +15,23 @@ const quoteSchema = z.object({
 });
 
 export const QuotationsPage = () => {
+  const queryClient = useQueryClient();
+  const navigate = useNavigate();
+
   const { register, handleSubmit, formState: { errors } } = useForm({
     resolver: zodResolver(quoteSchema)
   });
 
-  const onSubmit = () => {
-    alert("Quotation Submitted Successfully!");
+  const mutation = useMutation({
+    mutationFn: createQuotation,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['logs'] });
+      navigate('/erp/dashboard');
+    }
+  });
+
+  const onSubmit = (data) => {
+    mutation.mutate(data);
   };
 
   return (
@@ -63,8 +77,10 @@ export const QuotationsPage = () => {
               {...register("notes")} 
             />
             <div className="flex justify-end gap-3">
-              <Button type="button" variant="outline">Cancel</Button>
-              <Button type="submit" variant="primary">Submit Bid</Button>
+              <Button type="button" variant="outline" onClick={() => navigate('/erp/dashboard')}>Cancel</Button>
+              <Button type="submit" variant="primary" disabled={mutation.isPending}>
+                {mutation.isPending ? 'Submitting...' : 'Submit Bid'}
+              </Button>
             </div>
           </form>
         </CardContent>

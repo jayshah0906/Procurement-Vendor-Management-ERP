@@ -29,3 +29,16 @@ export const mockSpendData = [
   { name: 'May', spend: 1890 },
   { name: 'Jun', spend: 2390 },
 ];
+
+export const mockInvoices = [
+  { id: 'INV-2026-101', vendor: 'Global Electronics', amount: '$42,500.00', status: 'Pending Payment', dueDate: '2026-06-30' },
+  { id: 'INV-2026-102', vendor: 'Tech Supplies Inc.', amount: '$1,250.00', status: 'Paid', dueDate: '2026-06-15' },
+  { id: 'INV-2026-103', vendor: 'Office Solutions', amount: '$8,400.00', status: 'Overdue', dueDate: '2026-06-01' },
+];
+
+export const mockLogs = [
+  { id: 1, action: 'Purchase Order Generated', entity: 'PO-2026-045', user: 'System', time: '10 mins ago', color: 'bg-green-100 text-green-600' },
+  { id: 2, action: 'RFQ Approved', entity: 'RFQ-2026-001', user: 'John Doe (Director)', time: '1 hour ago', color: 'bg-blue-100 text-blue-600' },
+  { id: 3, action: 'New Quotation Submitted', entity: 'Global Electronics', user: 'Vendor Portal', time: '3 hours ago', color: 'bg-purple-100 text-purple-600' },
+  { id: 4, action: 'Vendor Registered', entity: 'Office Chairs LLC', user: 'Jane Smith (Procurement)', time: '1 day ago', color: 'bg-yellow-100 text-yellow-600' },
+];

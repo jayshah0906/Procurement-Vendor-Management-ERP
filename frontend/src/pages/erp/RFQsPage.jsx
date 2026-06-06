@@ -1,6 +1,9 @@
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { createRFQ } from '../../api/mockApi';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader } from '../../components/ui/Card';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
@@ -16,6 +19,9 @@ const rfqSchema = z.object({
 });
 
 export const RFQsPage = () => {
+  const queryClient = useQueryClient();
+  const navigate = useNavigate();
+
   const { register, control, handleSubmit, formState: { errors } } = useForm({
     resolver: zodResolver(rfqSchema),
     defaultValues: {
@@ -28,9 +34,16 @@ export const RFQsPage = () => {
     name: "items"
   });
 
+  const mutation = useMutation({
+    mutationFn: createRFQ,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['recentRFQs'] });
+      navigate('/erp/dashboard');
+    }
+  });
+
   const onSubmit = (data) => {
-    console.log("RFQ Submitted:", data);
-    alert("RFQ Created Successfully!");
+    mutation.mutate(data);
   };
 
   return (
@@ -102,8 +115,10 @@ export const RFQsPage = () => {
             </div>
 
             <div className="pt-4 border-t border-gray-100 flex justify-end gap-3">
-              <Button type="button" variant="ghost">Cancel</Button>
-              <Button type="submit" variant="primary">Publish RFQ</Button>
+              <Button type="button" variant="ghost" onClick={() => navigate('/erp/dashboard')}>Cancel</Button>
+              <Button type="submit" variant="primary" disabled={mutation.isPending}>
+                {mutation.isPending ? 'Publishing...' : 'Publish RFQ'}
+              </Button>
             </div>
 
           </form>
