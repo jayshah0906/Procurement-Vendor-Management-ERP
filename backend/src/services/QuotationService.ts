@@ -2,6 +2,7 @@ import { prisma } from "../utils/prisma";
 import { NotFoundError, BadRequestError, ForbiddenError } from "../utils/errors";
 import { AuditService } from "./AuditService";
 import { quotation_status, Prisma } from "../generated/prisma/client";
+import { ApprovalService } from "./ApprovalService";
 
 export class QuotationService {
   static async createQuotation(
@@ -49,7 +50,7 @@ export class QuotationService {
       throw new ForbiddenError("You have not been invited to submit a quotation for this RFQ");
     }
 
-    return await prisma.$transaction(async (tx) => {
+    const quotation = await prisma.$transaction(async (tx) => {
       // 3. Fetch tax settings
       const settings = await tx.organization_settings.findUnique({
         where: { organization_id: organizationId },
@@ -150,6 +151,17 @@ export class QuotationService {
         items: createdItems,
       };
     });
+
+    // Automatically create the quotation approval workflow so approvers can review new submissions.
+    await ApprovalService.initiateApproval(actorId, organizationId, {
+      entity_type: "quotation",
+      entity_id: quotation.id,
+      approvers: [],
+    });
+
+    return {
+      ...quotation,
+    };
   }
 
   static async getQuotations(

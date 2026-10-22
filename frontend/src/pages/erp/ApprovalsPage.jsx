@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { approvalsApi } from '../../api/approvals.api';
+import { quotationsApi } from '../../api/quotations.api';
 import { ApiErrorBanner } from '../../components/feedback/ApiErrorBanner';
 import { Card, CardContent } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
@@ -19,6 +20,9 @@ const entityLabel = (type) => {
   const map = { quotation: 'Quotation', po: 'Purchase Order', vendor: 'Vendor' };
   return map[type] || type?.toUpperCase();
 };
+
+const fmtCurrency = (value) =>
+  value != null ? Number(value).toLocaleString('en-IN', { style: 'currency', currency: 'INR' }) : '—';
 
 export const ApprovalsPage = () => {
   const [searchParams] = useSearchParams();
@@ -41,6 +45,12 @@ export const ApprovalsPage = () => {
     queryKey: ['approvals', workflowId],
     queryFn: () => approvalsApi.getWorkflow(workflowId),
     enabled: !!workflowId,
+  });
+
+  const { data: quotation, isLoading: loadingQuotation } = useQuery({
+    queryKey: ['quotations', workflow?.entity_id],
+    queryFn: () => quotationsApi.getQuotationById(workflow.entity_id),
+    enabled: !!workflow && workflow.entity_type === 'quotation',
   });
 
   const actionMutation = useMutation({
@@ -73,7 +83,7 @@ export const ApprovalsPage = () => {
               </div>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full text-left text-sm">
+                <table className="w-full text-left text-sm min-w-[540px]">
                   <thead className="bg-gray-50 border-b border-gray-200">
                     <tr>
                       <th className="px-6 py-4 font-semibold text-gray-600 uppercase tracking-wider">Entity Type</th>
@@ -171,6 +181,89 @@ export const ApprovalsPage = () => {
             </div>
           </div>
 
+          {workflow.entity_type === 'quotation' && (
+            <div className="p-6 border-b border-gray-100">
+              <div className="flex items-center justify-between gap-4 mb-4">
+                <h3 className="font-semibold text-gray-900">Quotation Details</h3>
+                <Button variant="outline" size="sm" onClick={() => navigate('/erp/quotations')}>
+                  Open Quotations
+                </Button>
+              </div>
+
+              {loadingQuotation ? (
+                <div className="space-y-3">
+                  <div className="h-16 bg-gray-100 rounded-lg animate-pulse"></div>
+                  <div className="h-28 bg-gray-100 rounded-lg animate-pulse"></div>
+                </div>
+              ) : quotation ? (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm bg-gray-50 p-4 rounded-xl border border-gray-100">
+                    <div>
+                      <p className="text-gray-500 mb-1">Quotation Number</p>
+                      <p className="font-semibold text-gray-900">{quotation.quotation_number}</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-500 mb-1">Vendor</p>
+                      <p className="font-semibold text-gray-900">{quotation.vendor_name ?? '—'}</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-500 mb-1">RFQ</p>
+                      <p className="font-semibold text-gray-900">{quotation.rfq_title ?? quotation.rfq_number ?? '—'}</p>
+                    </div>
+                  </div>
+
+                  {quotation.notes && (
+                    <div className="bg-blue-50/60 border border-blue-100 rounded-xl p-4 text-sm text-gray-700 italic">
+                      &quot;{quotation.notes}&quot;
+                    </div>
+                  )}
+
+                  <div className="overflow-x-auto border border-gray-200 rounded-xl">
+                    <table className="w-full text-left text-sm">
+                      <thead className="bg-gray-50 border-b border-gray-200">
+                        <tr>
+                          <th className="px-4 py-3 font-semibold text-gray-600">Item</th>
+                          <th className="px-4 py-3 font-semibold text-gray-600 text-right">Qty</th>
+                          <th className="px-4 py-3 font-semibold text-gray-600 text-right">Unit Price</th>
+                          <th className="px-4 py-3 font-semibold text-gray-600 text-right">Total</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100 bg-white">
+                        {(quotation.items || []).map((item) => (
+                          <tr key={item.id} className="hover:bg-gray-50">
+                            <td className="px-4 py-3 text-gray-900 font-medium">{item.item_name}</td>
+                            <td className="px-4 py-3 text-gray-600 text-right">{Number(item.quantity)}</td>
+                            <td className="px-4 py-3 text-gray-600 text-right">{fmtCurrency(item.unit_price)}</td>
+                            <td className="px-4 py-3 text-gray-900 font-semibold text-right">{fmtCurrency(item.total_price)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <div className="flex justify-end">
+                    <div className="w-full md:w-72 space-y-2 text-sm">
+                      <div className="flex justify-between text-gray-600">
+                        <span>Subtotal</span>
+                        <span>{fmtCurrency(quotation.subtotal)}</span>
+                      </div>
+                      <div className="flex justify-between text-gray-600">
+                        <span>Tax</span>
+                        <span>{fmtCurrency(quotation.tax_amount)}</span>
+                      </div>
+                      <div className="flex justify-between font-bold text-lg text-gray-900 pt-2 border-t border-gray-200">
+                        <span>Grand Total</span>
+                        <span>{fmtCurrency(quotation.grand_total)}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-sm text-gray-500">Quotation details could not be loaded.</p>
+              )}
+            </div>
+          )}
+
           <div className="p-6">
             <h3 className="font-semibold text-gray-900 mb-4">Approval Chain</h3>
             <div className="space-y-6">
@@ -182,14 +275,14 @@ export const ApprovalsPage = () => {
                   <div key={step.id} className="relative pl-8">
                     {/* Timeline connector */}
                     {index !== workflow.approval_steps.length - 1 && (
-                      <div className="absolute left-[11px] top-8 bottom-[-24px] w-[2px] bg-gray-100"></div>
+                      <div className="absolute left-2.75 top-8 -bottom-6 w-0.5 bg-gray-100"></div>
                     )}
                     
                     {/* Timeline dot */}
                     <div className={`absolute left-0 top-1.5 w-6 h-6 rounded-full flex items-center justify-center
                       ${step.status === 'approved' ? 'bg-green-100 text-green-600' : 
                         step.status === 'rejected' ? 'bg-red-100 text-red-600' : 
-                        isCurrentPending ? 'bg-blue-100 text-[var(--color-royal-blue)] ring-4 ring-blue-50' : 
+                        isCurrentPending ? 'bg-blue-100 text-royal-blue ring-4 ring-blue-50' : 
                         'bg-gray-100 text-gray-400'}`}
                     >
                       {step.status === 'approved' ? <CheckCircle size={14} weight="fill" /> :
@@ -197,7 +290,7 @@ export const ApprovalsPage = () => {
                        <span className="text-xs font-bold">{step.level_no}</span>}
                     </div>
 
-                    <div className={`p-4 rounded-xl border ${canAct ? 'border-[var(--color-royal-blue)] bg-blue-50/30' : 'border-gray-100 bg-white'}`}>
+                    <div className={`p-4 rounded-xl border ${canAct ? 'border-royal-blue bg-blue-50/30' : 'border-gray-100 bg-white'}`}>
                       <div className="flex justify-between items-start mb-2">
                         <div>
                           <p className="font-semibold text-gray-900">
@@ -229,7 +322,7 @@ export const ApprovalsPage = () => {
                               name="remarks"
                               rows={2}
                               placeholder="Add a comment... (optional)"
-                              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-royal-blue)] mb-3"
+                              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-royal-blue mb-3"
                             />
                             <div className="flex gap-3">
                               <Button

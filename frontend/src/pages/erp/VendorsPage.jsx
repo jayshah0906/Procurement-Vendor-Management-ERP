@@ -190,7 +190,7 @@ export const VendorsPage = () => {
             <div className="p-6"><TableSkeleton rows={6} cols={5} /></div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm">
+              <table className="w-full text-left text-sm min-w-[640px]">
                 <thead className="bg-gray-50 border-b border-gray-200">
                   {table.getHeaderGroups().map((headerGroup) => (
                     <tr key={headerGroup.id}>
@@ -246,7 +246,7 @@ export const VendorsPage = () => {
       {/* Add Vendor Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden">
             <div className="flex justify-between items-center p-6 border-b border-gray-100">
               <h2 className="text-xl font-bold text-gray-900">Register New Vendor</h2>
               <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-gray-600">
@@ -257,7 +257,7 @@ export const VendorsPage = () => {
               {mutation.isError && (
                 <ApiErrorBanner error={mutation.error} fallback="Failed to create vendor." />
               )}
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="col-span-2">
                   <Input label="Company Name" placeholder="Tech Supplies Inc." {...register('company_name')} error={errors.company_name?.message} />
                 </div>

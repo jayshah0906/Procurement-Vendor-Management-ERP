@@ -87,10 +87,18 @@ export class ApprovalService {
       let approverList = data.approvers || [];
       if (approverList.length === 0) {
         // Fetch all active approvers in the organization
+        const approverRole = await tx.roles.findFirst({
+          where: { name: "Approver" },
+        });
+
+        if (!approverRole) {
+          throw new NotFoundError("Approver role not found");
+        }
+
         const dbApprovers = await tx.users.findMany({
           where: {
             organization_id: organizationId,
-            role_id: 4, // Approver role
+            role_id: approverRole.id,
             is_active: true,
             deleted_at: null,
           },

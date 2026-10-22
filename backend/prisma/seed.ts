@@ -162,7 +162,7 @@ async function main() {
   }
 
   // Procurement Officer: all except approve, blacklist, publish, pay, role, user management
-  const officerPerms = dbPermissions.filter(p => 
+  const officerPerms = dbPermissions.filter(p =>
     !(p.action === "approve" || p.action === "blacklist" || p.action === "publish" || p.action === "pay" || p.resource === "role" || p.resource === "user")
   );
   for (const perm of officerPerms) {
@@ -172,7 +172,7 @@ async function main() {
   }
 
   // Vendor permissions
-  const vendorPerms = dbPermissions.filter(p => 
+  const vendorPerms = dbPermissions.filter(p =>
     (p.resource === "rfq" && p.action === "view") ||
     (p.resource === "quotation" && ["create", "view", "submit"].includes(p.action)) ||
     (p.resource === "po" && p.action === "view") ||
@@ -185,7 +185,7 @@ async function main() {
   }
 
   // Approver permissions
-  const approverPerms = dbPermissions.filter(p => 
+  const approverPerms = dbPermissions.filter(p =>
     p.action === "approve" || p.action === "view"
   );
   for (const perm of approverPerms) {
@@ -728,15 +728,15 @@ async function main() {
   });
 
   console.log("📦 Seeding extra Purchase Orders for reporting...");
-  
+
   // TechCore Ltd POs (₹4,20,000 spend in May 2026, 6 POs total)
   const techCorePOData = [
     { amount: 220000, date: new Date("2026-05-10T12:00:00Z"), status: "completed" },
     { amount: 200000, date: new Date("2026-05-15T12:00:00Z"), status: "completed" },
-    { amount: 60000,  date: new Date("2026-04-10T12:00:00Z"), status: "completed" },
-    { amount: 50000,  date: new Date("2026-03-15T12:00:00Z"), status: "completed" },
-    { amount: 80000,  date: new Date("2026-02-20T12:00:00Z"), status: "completed" },
-    { amount: 70000,  date: new Date("2026-01-25T12:00:00Z"), status: "completed" },
+    { amount: 60000, date: new Date("2026-04-10T12:00:00Z"), status: "completed" },
+    { amount: 50000, date: new Date("2026-03-15T12:00:00Z"), status: "completed" },
+    { amount: 80000, date: new Date("2026-02-20T12:00:00Z"), status: "completed" },
+    { amount: 70000, date: new Date("2026-01-25T12:00:00Z"), status: "completed" },
   ];
 
   for (let i = 0; i < techCorePOData.length; i++) {
@@ -791,7 +791,7 @@ async function main() {
     { amount: 310000, date: new Date("2026-05-12T12:00:00Z"), status: "completed" },
     { amount: 100000, date: new Date("2026-04-18T12:00:00Z"), status: "completed" },
     { amount: 120000, date: new Date("2026-03-22T12:00:00Z"), status: "completed" },
-    { amount: 90000,  date: new Date("2026-02-14T12:00:00Z"), status: "completed" },
+    { amount: 90000, date: new Date("2026-02-14T12:00:00Z"), status: "completed" },
   ];
 
   for (let i = 0; i < infraPOData.length; i++) {
@@ -844,8 +844,8 @@ async function main() {
   // FastLog POs (₹1,90,000 spend in May 2026, 3 POs total)
   const fastLogPOData = [
     { amount: 190000, date: new Date("2026-05-20T12:00:00Z"), status: "completed" },
-    { amount: 80000,  date: new Date("2026-04-25T12:00:00Z"), status: "completed" },
-    { amount: 90000,  date: new Date("2026-03-30T12:00:00Z"), status: "completed" },
+    { amount: 80000, date: new Date("2026-04-25T12:00:00Z"), status: "completed" },
+    { amount: 90000, date: new Date("2026-03-30T12:00:00Z"), status: "completed" },
   ];
 
   for (let i = 0; i < fastLogPOData.length; i++) {
@@ -899,7 +899,7 @@ async function main() {
   const officePOData = [
     { amount: 210000, date: new Date("2026-05-08T12:00:00Z"), status: "completed" },
     { amount: 150000, date: new Date("2026-04-05T12:00:00Z"), status: "completed" },
-    { amount: 90000,  date: new Date("2025-12-15T12:00:00Z"), status: "completed" },
+    { amount: 90000, date: new Date("2025-12-15T12:00:00Z"), status: "completed" },
   ];
 
   for (let i = 0; i < officePOData.length; i++) {

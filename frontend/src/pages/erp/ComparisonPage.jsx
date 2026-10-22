@@ -81,7 +81,7 @@ export const ComparisonPage = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <h1 className="text-2xl font-bold text-gray-900">Compare Quotations</h1>
         <Button variant="outline" onClick={() => navigate('/erp/rfqs')}>Back to RFQs</Button>
       </div>
@@ -222,7 +222,7 @@ export const ComparisonPage = () => {
       {/* Create PO Modal */}
       {poModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
             <div className="flex justify-between items-center p-6 border-b border-gray-100">
               <div>
                 <h2 className="text-xl font-bold text-gray-900">Generate Purchase Order</h2>

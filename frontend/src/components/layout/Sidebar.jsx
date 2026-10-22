@@ -10,6 +10,7 @@ import {
   Receipt,
   Invoice,
   ChartLineUp,
+  X,
 } from '@phosphor-icons/react';
 
 // Exact role names as returned by the backend
@@ -20,7 +21,7 @@ const ROLES = {
   APPROVER: 'Approver',
 };
 
-export const Sidebar = () => {
+export const Sidebar = ({ isOpen, onClose }) => {
   const { user } = useAuthStore();
   const role = user?.role || '';
 
@@ -47,8 +48,7 @@ export const Sidebar = () => {
       to: '/erp/quotations',
       label: 'Quotations',
       icon: <Files size={20} />,
-      // Managers see the list; vendors are redirected via logic in the page
-      roles: [ROLES.PROCUREMENT_MANAGER, ROLES.PROCUREMENT_OFFICER, ROLES.VENDOR],
+      roles: [ROLES.PROCUREMENT_MANAGER, ROLES.PROCUREMENT_OFFICER, ROLES.VENDOR, ROLES.APPROVER],
     },
     {
       to: '/erp/compare',
@@ -90,19 +90,28 @@ export const Sidebar = () => {
 
   const visibleLinks = allLinks.filter((link) => link.roles.includes(role));
 
-  return (
-    <aside className="w-64 bg-white border-r border-gray-200 flex flex-col transition-all h-full z-10 hidden md:flex">
-      <div className="p-6 border-b border-gray-200">
+  const sidebarContent = (
+    <aside className="w-64 bg-white border-r border-gray-200 flex flex-col h-full z-10">
+      <div className="p-6 border-b border-gray-200 flex items-center justify-between">
         <NavLink to="/" className="flex items-center gap-2 font-bold text-xl text-[var(--color-royal-blue)]">
           <span className="text-2xl">∞</span>
           VendorBridge
         </NavLink>
+        {/* Close button – only visible on mobile */}
+        <button
+          onClick={onClose}
+          className="md:hidden p-1 text-gray-400 hover:text-gray-600 rounded"
+          aria-label="Close menu"
+        >
+          <X size={22} />
+        </button>
       </div>
       <nav className="flex-1 p-4 overflow-y-auto space-y-1">
         {visibleLinks.map((link) => (
           <NavLink
             key={link.to}
             to={link.to}
+            onClick={onClose}
             className={({ isActive }) =>
               `flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-colors ${
                 isActive
@@ -127,5 +136,30 @@ export const Sidebar = () => {
         </div>
       )}
     </aside>
+  );
+
+  return (
+    <>
+      {/* Desktop: static sidebar */}
+      <div className="hidden md:flex h-full">
+        {sidebarContent}
+      </div>
+
+      {/* Mobile: overlay drawer */}
+      {isOpen && (
+        <div className="md:hidden fixed inset-0 z-40 flex">
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm"
+            onClick={onClose}
+            aria-hidden="true"
+          />
+          {/* Drawer panel */}
+          <div className="relative z-50 flex h-full">
+            {sidebarContent}
+          </div>
+        </div>
+      )}
+    </>
   );
 };

@@ -122,7 +122,7 @@ export const QuotationSubmitPage = () => {
       <Card>
         <CardHeader title={`RFQ: ${rfq.title}`} className="bg-gray-50" />
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-2 gap-4 text-sm mb-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm mb-6">
             <div>
               <p className="text-gray-500">Description</p>
               <p className="font-medium text-gray-900">{rfq.description || '—'}</p>
@@ -143,7 +143,7 @@ export const QuotationSubmitPage = () => {
             <div className="space-y-4">
               <h4 className="font-semibold text-gray-700">Your Bid for Each Item</h4>
               <div className="overflow-x-auto border border-gray-200 rounded-lg">
-                <table className="w-full text-left text-sm">
+                <table className="w-full text-left text-sm min-w-[520px]">
                   <thead className="bg-gray-50 border-b border-gray-200">
                     <tr>
                       <th className="px-4 py-3 font-semibold text-gray-600">Item Name</th>
@@ -232,7 +232,7 @@ export const QuotationSubmitPage = () => {
 
             <Input label="Additional Notes (Optional)" {...register('notes')} placeholder="Any special terms or conditions..." />
 
-            <div className="flex justify-end gap-3">
+            <div className="flex flex-col sm:flex-row justify-end gap-3">
               <Button type="button" variant="outline" onClick={() => navigate('/erp/quotations')}>Cancel</Button>
               <Button type="submit" variant="primary" disabled={mutation.isPending}>
                 {mutation.isPending ? 'Submitting...' : 'Submit Bid'}

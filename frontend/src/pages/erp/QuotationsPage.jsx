@@ -11,6 +11,7 @@ const statusVariant = (status) => {
   const map = {
     submitted: 'blue',
     under_review: 'yellow',
+    selected: 'green',
     accepted: 'green',
     rejected: 'red',
     draft: 'gray',
@@ -52,7 +53,7 @@ export const QuotationsPage = () => {
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm">
+              <table className="w-full text-left text-sm min-w-[640px]">
                 <thead className="bg-gray-50 border-b border-gray-200">
                   <tr>
                     <th className="px-6 py-4 font-semibold text-gray-600 uppercase tracking-wider">Quotation ID</th>

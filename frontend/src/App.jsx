@@ -54,8 +54,8 @@ function App() {
               <Route path="rfqs" element={<RFQsPage />} />
             </Route>
 
-            {/* Quotations: Procurement Manager, Officer, Vendor */}
-            <Route element={<ProtectedRoute allowedRoles={[ROLES.PROCUREMENT_MANAGER, ROLES.PROCUREMENT_OFFICER, ROLES.VENDOR]} />}>
+            {/* Quotations: Procurement Manager, Officer, Vendor, Approver */}
+            <Route element={<ProtectedRoute allowedRoles={[ROLES.PROCUREMENT_MANAGER, ROLES.PROCUREMENT_OFFICER, ROLES.VENDOR, ROLES.APPROVER]} />}>
               <Route path="quotations" element={<QuotationsPage />} />
             </Route>
 

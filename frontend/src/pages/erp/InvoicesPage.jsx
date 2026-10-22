@@ -48,13 +48,16 @@ export const InvoicesPage = () => {
   });
 
   const { data: poData } = useQuery({
-    queryKey: ['purchase-orders', { status: 'accepted' }],
-    queryFn: () => purchaseOrdersApi.getPurchaseOrders({ status: 'accepted' }),
+    queryKey: ['purchase-orders'],
+    queryFn: () => purchaseOrdersApi.getPurchaseOrders(),
     enabled: isModalOpen,
   });
 
   const invoices = Array.isArray(invoiceData) ? invoiceData : invoiceData?.items ?? [];
-  const openPOs = Array.isArray(poData) ? poData : poData?.items ?? [];
+  const rawPOs = Array.isArray(poData) ? poData : poData?.items ?? [];
+  const openPOs = rawPOs.filter(
+    (po) => po.status === 'generated' || po.status === 'sent' || po.status === 'accepted'
+  );
 
   const { register, handleSubmit, reset, watch, setValue, formState: { errors } } = useForm({
     resolver: zodResolver(invoiceSchema),
@@ -92,7 +95,7 @@ export const InvoicesPage = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <h1 className="text-2xl font-bold text-gray-900">Invoices & Billing</h1>
         <Button variant="primary" onClick={() => setIsModalOpen(true)}>
           <Plus size={18} className="mr-2" /> Create Invoice
@@ -110,7 +113,7 @@ export const InvoicesPage = () => {
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm">
+              <table className="w-full text-left text-sm min-w-[640px]">
                 <thead className="bg-gray-50 border-b border-gray-200">
                   <tr>
                     <th className="px-6 py-4 font-semibold text-gray-600 uppercase tracking-wider">Invoice #</th>
@@ -135,7 +138,7 @@ export const InvoicesPage = () => {
                       <td className="px-6 py-4">
                         <Badge variant={statusVariant(invoice.status)}>{invoice.status}</Badge>
                       </td>
-                      <td className="px-6 py-4 flex gap-2">
+                      <td className="px-6 py-4"><div className="flex flex-wrap gap-2">
                         <Button
                           variant="ghost"
                           size="sm"
@@ -163,7 +166,7 @@ export const InvoicesPage = () => {
                             <CreditCard size={16} className="mr-1" /> Pay
                           </Button>
                         )}
-                      </td>
+                      </div></td>
                     </tr>
                   ))}
                 </tbody>
@@ -176,7 +179,7 @@ export const InvoicesPage = () => {
       {/* Create Invoice Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden">
             <div className="flex justify-between items-center p-6 border-b border-gray-100">
               <h2 className="text-xl font-bold text-gray-900">Create Invoice</h2>
               <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-gray-600">
@@ -200,7 +203,7 @@ export const InvoicesPage = () => {
                 </select>
                 {errors.purchase_order_id && <p className="text-red-500 text-xs mt-1">{errors.purchase_order_id.message}</p>}
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Input label="Invoice Number" placeholder="INV-2026-001" {...register('invoice_number')} error={errors.invoice_number?.message} />
                 <Input label="Invoice Date" type="date" {...register('invoice_date')} error={errors.invoice_date?.message} />
                 <Input label="Due Date" type="date" {...register('due_date')} error={errors.due_date?.message} />

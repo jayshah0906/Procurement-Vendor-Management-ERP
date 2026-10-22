@@ -135,7 +135,7 @@ export const RFQsPage = () => {
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm">
+              <table className="w-full text-left text-sm min-w-[640px]">
                 <thead className="bg-gray-50 border-b border-gray-200">
                   <tr>
                     <th className="px-6 py-4 font-semibold text-gray-600 uppercase tracking-wider">Title</th>
@@ -239,7 +239,7 @@ export const RFQsPage = () => {
       {/* Invite Vendors Modal */}
       {inviteRFQ && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden">
             <div className="flex justify-between items-center p-6 border-b border-gray-100">
               <div>
                 <h2 className="text-xl font-bold text-gray-900">Invite Vendors</h2>
@@ -301,7 +301,7 @@ export const RFQsPage = () => {
       {/* Create RFQ Modal */}
       {isCreateOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl mx-4 overflow-hidden">
             <div className="flex justify-between items-center p-6 border-b border-gray-100">
               <h2 className="text-xl font-bold text-gray-900">Create Request for Quotation</h2>
               <button onClick={() => setIsCreateOpen(false)} className="text-gray-400 hover:text-gray-600">
@@ -353,20 +353,22 @@ export const RFQsPage = () => {
                 {errors.items?.root && <p className="text-sm text-red-500 mb-2">{errors.items.root.message}</p>}
                 <div className="space-y-3">
                   {fields.map((item, index) => (
-                    <div key={item.id} className="grid grid-cols-12 gap-2 items-start">
-                      <div className="col-span-4">
+                    <div key={item.id} className="flex flex-col sm:grid sm:grid-cols-12 gap-2 items-start">
+                      <div className="sm:col-span-4">
                         <Input placeholder="Item name" {...register(`items.${index}.item_name`)} error={errors?.items?.[index]?.item_name?.message} />
                       </div>
-                      <div className="col-span-2">
-                        <Input type="number" min="1" placeholder="Qty" {...register(`items.${index}.quantity`, { valueAsNumber: true })} error={errors?.items?.[index]?.quantity?.message} />
+                      <div className="grid grid-cols-2 gap-2 sm:contents">
+                        <div className="sm:col-span-2">
+                          <Input type="number" min="1" placeholder="Qty" {...register(`items.${index}.quantity`, { valueAsNumber: true })} error={errors?.items?.[index]?.quantity?.message} />
+                        </div>
+                        <div className="sm:col-span-2">
+                          <Input placeholder="Unit" {...register(`items.${index}.unit`)} error={errors?.items?.[index]?.unit?.message} />
+                        </div>
                       </div>
-                      <div className="col-span-2">
-                        <Input placeholder="Unit" {...register(`items.${index}.unit`)} error={errors?.items?.[index]?.unit?.message} />
-                      </div>
-                      <div className="col-span-3">
+                      <div className="sm:col-span-3">
                         <Input type="number" step="0.01" min="0" placeholder="Est. price" {...register(`items.${index}.estimated_unit_price`, { valueAsNumber: true })} error={errors?.items?.[index]?.estimated_unit_price?.message} />
                       </div>
-                      <div className="col-span-1 pt-1">
+                      <div className="sm:col-span-1 pt-1">
                         <Button type="button" variant="ghost" className="text-red-500 hover:bg-red-50 p-2"
                           onClick={() => remove(index)} disabled={fields.length === 1}>
                           <Trash size={18} />

@@ -46,7 +46,7 @@ export const PurchaseOrderDetailPage = () => {
 
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           <button onClick={() => navigate('/erp/orders')} className="text-gray-400 hover:text-gray-600 transition-colors">
             <ArrowLeft size={24} />
@@ -127,7 +127,7 @@ export const PurchaseOrderDetailPage = () => {
         <CardHeader title="Order Items" />
         <CardContent className="p-0">
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
+            <table className="w-full text-left text-sm min-w-[500px]">
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
                   <th className="px-6 py-3 font-semibold text-gray-600 uppercase">Item</th>

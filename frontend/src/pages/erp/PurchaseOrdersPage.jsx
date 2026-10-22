@@ -40,7 +40,7 @@ export const PurchaseOrdersPage = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <h1 className="text-2xl font-bold text-gray-900">Purchase Orders</h1>
       </div>
 
@@ -58,7 +58,7 @@ export const PurchaseOrdersPage = () => {
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm">
+              <table className="w-full text-left text-sm min-w-[640px]">
                 <thead className="bg-gray-50 border-b border-gray-200">
                   <tr>
                     <th className="px-6 py-4 font-semibold text-gray-600 uppercase tracking-wider">PO Number</th>
@@ -85,7 +85,7 @@ export const PurchaseOrdersPage = () => {
                       <td className="px-6 py-4">
                         <Badge variant={statusVariant(po.status)}>{po.status?.replace('_', ' ')}</Badge>
                       </td>
-                      <td className="px-6 py-4 flex gap-2">
+                      <td className="px-6 py-4"><div className="flex flex-wrap gap-2">
                         {po.status === 'generated' && (
                           <Button
                             variant="outline"
@@ -104,7 +104,7 @@ export const PurchaseOrdersPage = () => {
                         >
                           View
                         </Button>
-                      </td>
+                      </div></td>
                     </tr>
                   ))}
                 </tbody>
