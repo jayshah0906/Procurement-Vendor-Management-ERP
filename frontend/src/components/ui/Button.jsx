@@ -6,7 +6,8 @@ export const Button = ({ children, variant = 'primary', size = 'md', className =
     secondary: "bg-[var(--color-eggplant)] text-white hover:bg-fuchsia-800 focus:ring-fuchsia-500 shadow-md",
     outline: "border border-gray-300 bg-transparent text-gray-700 hover:bg-gray-50 focus:ring-[var(--color-royal-blue)]",
     ghost: "bg-transparent text-gray-600 hover:bg-gray-100 focus:ring-gray-500",
-    danger: "bg-red-600 text-white hover:bg-red-700 focus:ring-red-500 shadow-md"
+    danger: "bg-red-600 text-white hover:bg-red-700 focus:ring-red-500 shadow-md",
+    success: "bg-green-600 text-white hover:bg-green-700 focus:ring-green-500 shadow-md"
   };
 
   const sizes = {

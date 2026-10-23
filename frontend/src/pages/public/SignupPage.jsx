@@ -10,7 +10,6 @@ import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
 import { Buildings, UserCircle, ArrowLeft, SealCheck, WarningCircle, CircleNotch } from '@phosphor-icons/react';
 
-const GSTIN_REGEX = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/;
 const normalizeGstin = (value) => (value || '').replace(/\s+/g, '').toUpperCase();
 
 const baseSchema = z.object({
@@ -34,8 +33,8 @@ const baseSchema = z.object({
 }, {
   message: 'Company name is required for vendor registration',
   path: ['company_name'],
-}).refine((d) => d.role_name !== 'Vendor' || GSTIN_REGEX.test(normalizeGstin(d.gst_number)), {
-  message: 'Enter a valid 15-character GSTIN (e.g. 27AAPFU0939F1ZV)',
+}).refine((d) => d.role_name !== 'Vendor' || normalizeGstin(d.gst_number), {
+  message: 'GST number is required for vendor registration',
   path: ['gst_number'],
 });
 
@@ -74,8 +73,8 @@ export const SignupPage = () => {
 
   const verifyGst = async () => {
     const gstin = normalizeGstin(getValues('gst_number'));
-    if (!GSTIN_REGEX.test(gstin)) {
-      setError('gst_number', { message: 'Enter a valid 15-character GSTIN (e.g. 27AAPFU0939F1ZV)' });
+    if (!gstin) {
+      setError('gst_number', { message: 'GST number is required for vendor registration' });
       return false;
     }
     clearErrors('gst_number');

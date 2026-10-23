@@ -17,7 +17,7 @@ import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { TableSkeleton } from '../../components/feedback/Skeleton';
-import { Funnel, Plus, CaretUp, CaretDown, X, Prohibit } from '@phosphor-icons/react';
+import { Funnel, Plus, CaretUp, CaretDown, X, Prohibit, CheckCircle } from '@phosphor-icons/react';
 import { ApiErrorBanner } from '../../components/feedback/ApiErrorBanner';
 
 const vendorSchema = z.object({
@@ -146,12 +146,14 @@ export const VendorsPage = () => {
         if (status === 'blocked') {
           return (
             <Button
-              variant="ghost"
+              variant="success"
               size="sm"
-              className="text-green-600 hover:text-green-700 text-xs px-2 py-1"
+              className="text-xs font-semibold px-3 py-1.5 gap-1.5 disabled:opacity-60"
               onClick={() => approveMutation.mutate(id)}
               disabled={approveMutation.isPending}
+              title="Unblock this vendor"
             >
+              <CheckCircle size={14} weight="bold" />
               Unblock
             </Button>
           );
