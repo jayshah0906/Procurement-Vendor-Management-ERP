@@ -5,9 +5,13 @@ import * as z from 'zod';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
 import { authApi } from '../../api/auth.api';
+import { gstApi } from '../../api/gst.api';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
-import { Buildings, UserCircle, ArrowLeft } from '@phosphor-icons/react';
+import { Buildings, UserCircle, ArrowLeft, SealCheck, WarningCircle, CircleNotch } from '@phosphor-icons/react';
+
+const GSTIN_REGEX = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/;
+const normalizeGstin = (value) => (value || '').replace(/\s+/g, '').toUpperCase();
 
 const baseSchema = z.object({
   first_name: z.string().min(1, 'First name is required'),
@@ -30,6 +34,9 @@ const baseSchema = z.object({
 }, {
   message: 'Company name is required for vendor registration',
   path: ['company_name'],
+}).refine((d) => d.role_name !== 'Vendor' || GSTIN_REGEX.test(normalizeGstin(d.gst_number)), {
+  message: 'Enter a valid 15-character GSTIN (e.g. 27AAPFU0939F1ZV)',
+  path: ['gst_number'],
 });
 
 const ROLE_OPTIONS = [
@@ -53,18 +60,57 @@ export const SignupPage = () => {
   const navigate = useNavigate();
   const login = useAuthStore((state) => state.login);
 
-  const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm({
+  // { gstin, status: 'loading' | 'verified' | 'failed', result?, message? } — only applies while gstin matches the field
+  const [gstCheck, setGstCheck] = useState(null);
+
+  const { register, handleSubmit, watch, setValue, getValues, setError, clearErrors, formState: { errors } } = useForm({
     resolver: zodResolver(baseSchema),
     defaultValues: { role_name: 'Procurement Officer' },
   });
 
   const selectedRole = watch('role_name');
+  const currentGstin = normalizeGstin(watch('gst_number'));
+  const gstState = gstCheck?.gstin === currentGstin ? gstCheck : null;
+
+  const verifyGst = async () => {
+    const gstin = normalizeGstin(getValues('gst_number'));
+    if (!GSTIN_REGEX.test(gstin)) {
+      setError('gst_number', { message: 'Enter a valid 15-character GSTIN (e.g. 27AAPFU0939F1ZV)' });
+      return false;
+    }
+    clearErrors('gst_number');
+    setGstCheck({ gstin, status: 'loading' });
+    try {
+      const result = await gstApi.verify(gstin);
+      setGstCheck({ gstin, status: result.valid ? 'verified' : 'failed', result, message: result.message });
+      if (result.valid) {
+        if (!getValues('company_name') && (result.trade_name || result.legal_name)) {
+          setValue('company_name', result.trade_name || result.legal_name, { shouldValidate: true });
+        }
+        if (!getValues('address') && result.address) setValue('address', result.address);
+      }
+      return result.valid;
+    } catch (err) {
+      const apiError = err?.response?.data?.error;
+      setGstCheck({
+        gstin,
+        status: 'failed',
+        message: (typeof apiError === 'string' ? apiError : apiError?.message) || 'Could not verify GSTIN. Please try again.',
+      });
+      return false;
+    }
+  };
 
   const onSubmit = async (data) => {
     setServerError('');
+    if (data.role_name === 'Vendor' && gstState?.status !== 'verified') {
+      const ok = await verifyGst();
+      if (!ok) return;
+    }
     setIsLoading(true);
     try {
       const { confirm_password, ...payload } = data;
+      if (payload.role_name === 'Vendor') payload.gst_number = normalizeGstin(payload.gst_number);
       const result = await authApi.register(payload);
       login(result.user, result.token, result.refresh_token);
       navigate('/erp/dashboard');
@@ -159,15 +205,65 @@ export const SignupPage = () => {
               <div className="space-y-4 border-t border-gray-200 pt-4 mt-2">
                 <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Company Information</p>
                 <Input label="Company Name *" placeholder="ABC Traders Pvt Ltd" {...register('company_name')} error={errors.company_name?.message} />
-                <div className="grid grid-cols-2 gap-4">
-                  <Input label="GST Number" placeholder="29AAACC1234B1Z5" {...register('gst_number')} error={errors.gst_number?.message} />
-                  <Input label="Phone" placeholder="+91 98765 43210" {...register('phone')} error={errors.phone?.message} />
+                <div>
+                  <label className="text-sm font-medium text-gray-700">GST Number *</label>
+                  <div className="flex gap-2 mt-1.5">
+                    <input
+                      placeholder="27AAPFU0939F1ZV"
+                      maxLength={15}
+                      autoComplete="off"
+                      className={`flex-1 min-w-0 px-3 py-2 border rounded-lg shadow-sm uppercase tracking-wider font-mono focus:outline-none focus:ring-2 transition-colors ${
+                        errors.gst_number || gstState?.status === 'failed'
+                          ? 'border-red-500 focus:ring-red-500'
+                          : gstState?.status === 'verified'
+                            ? 'border-green-500 focus:ring-green-500'
+                            : 'border-gray-300 focus:ring-[var(--color-royal-blue)]'
+                      }`}
+                      {...register('gst_number')}
+                    />
+                    <Button
+                      type="button"
+                      variant={gstState?.status === 'verified' ? 'outline' : 'secondary'}
+                      className={`shrink-0 gap-1.5 ${gstState?.status === 'verified' ? 'text-green-700 border-green-300 bg-green-50' : ''}`}
+                      onClick={verifyGst}
+                      disabled={gstState?.status === 'loading' || gstState?.status === 'verified'}
+                    >
+                      {gstState?.status === 'loading' ? (
+                        <><CircleNotch size={16} className="animate-spin" /> Verifying</>
+                      ) : gstState?.status === 'verified' ? (
+                        <><SealCheck size={16} weight="fill" /> Verified</>
+                      ) : (
+                        'Verify GST'
+                      )}
+                    </Button>
+                  </div>
+                  {errors.gst_number && <span className="text-xs text-red-500 mt-1 block">{errors.gst_number.message}</span>}
+                  {gstState?.status === 'failed' && (
+                    <div className="mt-2 flex items-start gap-2 p-2.5 rounded-lg bg-red-50 border border-red-200 text-red-700 text-xs">
+                      <WarningCircle size={16} weight="fill" className="shrink-0 mt-px" />
+                      <span>{gstState.message}</span>
+                    </div>
+                  )}
+                  {gstState?.status === 'verified' && (
+                    <div className="mt-2 p-2.5 rounded-lg bg-green-50 border border-green-200 text-xs text-green-800 space-y-0.5">
+                      <p className="flex items-center gap-1.5 font-semibold">
+                        <SealCheck size={16} weight="fill" className="shrink-0" /> {gstState.message}
+                      </p>
+                      {gstState.result.legal_name && <p><span className="text-green-700/80">Legal name:</span> {gstState.result.legal_name}</p>}
+                      {gstState.result.trade_name && <p><span className="text-green-700/80">Trade name:</span> {gstState.result.trade_name}</p>}
+                      <p>
+                        <span className="text-green-700/80">State:</span> {gstState.result.state}
+                        {gstState.result.status && <> · <span className="text-green-700/80">Status:</span> {gstState.result.status}</>}
+                      </p>
+                    </div>
+                  )}
                 </div>
+                <Input label="Phone" placeholder="+91 98765 43210" {...register('phone')} error={errors.phone?.message} />
                 <Input label="Address" placeholder="123 MG Road, Bangalore" {...register('address')} error={errors.address?.message} />
               </div>
             )}
 
-            <Button type="submit" variant="primary" className="w-full py-3 mt-4 text-lg font-semibold shadow-lg shadow-blue-500/30 transition-all hover:shadow-blue-500/50" disabled={isLoading}>
+            <Button type="submit" variant="primary" className="w-full py-3 mt-4 text-lg font-semibold shadow-lg shadow-blue-500/30 transition-all hover:shadow-blue-500/50" disabled={isLoading || gstState?.status === 'loading'}>
               {isLoading ? 'Creating Account...' : 'Create Account'}
             </Button>
           </form>

@@ -3,7 +3,7 @@ import { dashboardApi } from '../../api/dashboard.api';
 import { rfqsApi } from '../../api/rfqs.api';
 import { Card, CardContent, CardHeader } from '../../components/ui/Card';
 import { Skeleton } from '../../components/feedback/Skeleton';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LabelList } from 'recharts';
 import { Clock, FileText, Users, ShoppingCart } from '@phosphor-icons/react';
 import { Badge } from '../../components/ui/Badge';
 import { useAuthStore } from '../../store/authStore';
@@ -25,6 +25,17 @@ const MetricCard = ({ title, value, icon, colorClass, isLoading }) => (
     </CardContent>
   </Card>
 );
+
+// Compact INR for chart ticks/labels: 1.2L, 45k, 800
+const formatCompactINR = (val) => {
+  const num = Number(val);
+  if (num >= 10000000) return `₹${(num / 10000000).toFixed(1)}Cr`;
+  if (num >= 100000) return `₹${(num / 100000).toFixed(1)}L`;
+  if (num >= 1000) return `₹${(num / 1000).toFixed(0)}k`;
+  return `₹${num.toLocaleString('en-IN')}`;
+};
+
+const axisLabelStyle = { fill: '#374151', fontSize: 12, fontWeight: 600 };
 
 const rfqStatusColor = (status) => {
   const map = {
@@ -112,7 +123,7 @@ export const DashboardPage = () => {
               </div>
             ) : (
               <ResponsiveContainer width="100%" height="100%" minWidth={0}>
-                <LineChart data={spendData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
+                <LineChart data={spendData} margin={{ top: 28, right: 24, bottom: 10, left: 12 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
                   <XAxis
                     dataKey="month"
@@ -120,16 +131,27 @@ export const DashboardPage = () => {
                     tickLine={false}
                     tick={{ fill: '#6B7280', fontSize: 12 }}
                     dy={10}
+                    height={50}
+                    label={{ value: 'Month', position: 'insideBottom', offset: 0, style: axisLabelStyle }}
                   />
                   <YAxis
                     axisLine={false}
                     tickLine={false}
                     tick={{ fill: '#6B7280', fontSize: 12 }}
-                    dx={-10}
+                    dx={-6}
+                    width={70}
+                    tickFormatter={formatCompactINR}
+                    label={{
+                      value: isVendor ? 'Sales (₹)' : 'Spend (₹)',
+                      angle: -90,
+                      position: 'insideLeft',
+                      offset: 0,
+                      style: { ...axisLabelStyle, textAnchor: 'middle' },
+                    }}
                   />
                   <Tooltip
                     contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }}
-                    formatter={(value) => [`₹${Number(value).toLocaleString()}`, 'Spend']}
+                    formatter={(value) => [`₹${Number(value).toLocaleString('en-IN')}`, isVendor ? 'Sales' : 'Spend']}
                   />
                   <Line
                     type="monotone"
@@ -138,7 +160,15 @@ export const DashboardPage = () => {
                     strokeWidth={3}
                     dot={{ r: 4, fill: 'var(--color-royal-blue)', strokeWidth: 2, stroke: '#fff' }}
                     activeDot={{ r: 6 }}
-                  />
+                  >
+                    <LabelList
+                      dataKey="spend"
+                      position="top"
+                      offset={12}
+                      formatter={formatCompactINR}
+                      style={{ fill: '#1F2937', fontSize: 11, fontWeight: 600 }}
+                    />
+                  </Line>
                 </LineChart>
               </ResponsiveContainer>
             )}

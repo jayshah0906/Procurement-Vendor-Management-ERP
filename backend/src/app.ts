@@ -24,6 +24,7 @@ import collaborationRouter from "./routes/collaboration.routes";
 import dashboardRouter from "./routes/dashboard.routes";
 import analyticsRouter from "./routes/analytics.routes";
 import auditRouter from "./routes/audit.routes";
+import gstRouter from "./routes/gst.routes";
 
 const app = express();
 const PORT = process.env.PORT || 5001;
@@ -55,6 +56,7 @@ app.use(baseApiPrefix, collaborationRouter);
 app.use(baseApiPrefix, dashboardRouter);
 app.use(baseApiPrefix, analyticsRouter);
 app.use(baseApiPrefix, auditRouter);
+app.use(baseApiPrefix, gstRouter);
 
 // Health check endpoint
 app.get("/health", (req, res) => {

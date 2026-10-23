@@ -129,12 +129,16 @@ export const ReportsPage = () => {
     grid: {
       left: '3%',
       right: '4%',
-      bottom: '5%',
+      bottom: 36,
       containLabel: true,
-      top: '10%'
+      top: 36
     },
     xAxis: {
       type: 'category',
+      name: 'Month',
+      nameLocation: 'middle',
+      nameGap: 30,
+      nameTextStyle: { color: '#374151', fontSize: 12, fontWeight: 600 },
       data: spendTrend.map(item => {
         const [year, month] = item.month.split('-');
         const date = new Date(year, month - 1, 1);
@@ -149,6 +153,11 @@ export const ReportsPage = () => {
     },
     yAxis: {
       type: 'value',
+      name: 'Spend (₹)',
+      nameLocation: 'middle',
+      nameGap: 48,
+      nameRotate: 90,
+      nameTextStyle: { color: '#374151', fontSize: 12, fontWeight: 600 },
       axisLine: { show: false },
       axisTick: { show: false },
       splitLine: {
@@ -191,6 +200,14 @@ export const ReportsPage = () => {
         }),
         type: 'bar',
         barWidth: '45%',
+        label: {
+          show: true,
+          position: 'top',
+          color: '#1F2937',
+          fontSize: 11,
+          fontWeight: 600,
+          formatter: ({ value }) => formatLakhs(value)
+        },
         itemStyle: {
           borderRadius: [4, 4, 0, 0]
         }

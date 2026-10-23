@@ -3,6 +3,7 @@ import * as jwt from "jsonwebtoken";
 import { prisma } from "../utils/prisma";
 import { UnauthorizedError, NotFoundError, BadRequestError } from "../utils/errors";
 import { AuditService } from "./AuditService";
+import { GstService } from "./GstService";
 import { JwtPayload } from "../middleware/auth";
 
 const JWT_SECRET = process.env.JWT_SECRET || "vendorbridge-erp-jwt-access-token-secret-key-2026";
@@ -182,6 +183,13 @@ export class AuthService {
     const existing = await prisma.users.findUnique({ where: { email: data.email } });
     if (existing) throw new BadRequestError("An account with this email already exists");
 
+    // 1b. Vendors must provide a legitimate, verified GSTIN
+    let gstNumber: string | null = data.gst_number ? GstService.normalize(data.gst_number) : null;
+    if (data.role_name === "Vendor") {
+      if (!gstNumber) throw new BadRequestError("GST number is required for vendor registration");
+      gstNumber = (await GstService.assertValid(gstNumber)).gstin;
+    }
+
     // 2. Find the role by name
     const role = await prisma.roles.findFirst({ where: { name: data.role_name } });
     if (!role) throw new NotFoundError(`Role '${data.role_name}' not configured in the system`);
@@ -203,7 +211,7 @@ export class AuthService {
           data: {
             organization_id: organizationId,
             company_name: data.company_name,
-            gst_number: data.gst_number || null,
+            gst_number: gstNumber,
             contact_person: `${data.first_name} ${data.last_name || ""}`.trim(),
             email: data.email,
             phone: data.phone || null,

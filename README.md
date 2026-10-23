@@ -60,6 +60,9 @@ npm install
 
 # Set up environment variables
 # Create a .env file based on the provided schema and configure your DATABASE_URL
+# Optional: GST_API_KEY=<key from https://gstincheck.co.in> enables live GST portal
+# lookups during vendor signup. Without it, GSTINs are validated offline
+# (format, state code and checksum only).
 
 # Apply database migrations & generate Prisma client
 npm run prisma:generate
